@@ -317,7 +317,7 @@
 
         getUserPhotos(userId) {
             const all = this.getAll();
-            if (!userId) return all.filter(p => !p.deleted);
+            if (!userId) return [];
             return all.filter(p => p.userId === userId && !p.deleted);
         },
 
@@ -1912,18 +1912,22 @@
         state.isCountingDown = true;
         let remaining = seconds;
 
-        elements.countdownOverlay.style.display = 'flex';
-        elements.countdownNumber.innerText = remaining;
-        elements.countdownNumber.classList.add('pulse');
+        if (elements.countdownOverlay) elements.countdownOverlay.style.display = 'flex';
+        if (elements.countdownNumber) {
+            elements.countdownNumber.innerText = remaining;
+            elements.countdownNumber.classList.add('pulse');
+        }
         playBeep(false);
 
         const timer = setInterval(() => {
             remaining--;
             if (remaining > 0) {
-                elements.countdownNumber.innerText = remaining;
-                elements.countdownNumber.classList.remove('pulse');
-                void elements.countdownNumber.offsetWidth;
-                elements.countdownNumber.classList.add('pulse');
+                if (elements.countdownNumber) {
+                    elements.countdownNumber.innerText = remaining;
+                    elements.countdownNumber.classList.remove('pulse');
+                    void elements.countdownNumber.offsetWidth;
+                    elements.countdownNumber.classList.add('pulse');
+                }
                 playBeep(false);
 
                 // Jika flash aktif dan countdown mencapai 1 detik terakhir:
@@ -1937,7 +1941,7 @@
                 }
             } else {
                 clearInterval(timer);
-                elements.countdownOverlay.style.display = 'none';
+                if (elements.countdownOverlay) elements.countdownOverlay.style.display = 'none';
                 state.isCountingDown = false;
                 playBeep(true);
                 callback();
@@ -1953,11 +1957,14 @@
         }
 
         // Viewfinder shutter burst & efek audio
-        elements.flashOverlay.classList.remove('active');
-        void elements.flashOverlay.offsetWidth;
-        elements.flashOverlay.classList.add('active');
+        if (elements.flashOverlay) {
+            elements.flashOverlay.classList.remove('active');
+            void elements.flashOverlay.offsetWidth;
+            elements.flashOverlay.classList.add('active');
+        }
         playShutter();
 
+        if (!elements.video) return;
         const canvas = document.createElement('canvas');
         const vW = elements.video.videoWidth || 640;
         const vH = elements.video.videoHeight || 480;
@@ -2594,6 +2601,19 @@
     }
 
     /**
+     * XSS Sanitizer for Safe HTML Rendering
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    /**
      * Lightbox Modal Full Screen Viewer
      */
     function openLightbox(imgUrl, caption) {
@@ -2728,7 +2748,8 @@
                 card.className = 'gallery-card';
 
                 const theme = PhotoFrames.getTheme(photo.themeId);
-                const themeName = theme ? theme.name : (photo.themeId || 'PhotoArt Studio');
+                const themeName = escapeHtml(theme ? theme.name : (photo.themeId || 'PhotoArt Studio'));
+                const safeId = escapeHtml(photo.id);
                 const dateStr = formatDateTime(photo.createdAt);
 
                 const fileExt = (photo.url && photo.url.endsWith('.png')) ? 'png' : 'jpg';
@@ -2736,7 +2757,7 @@
                 card.innerHTML = `
                     <div class="gallery-card-thumb-wrapper" title="Ketuk untuk melihat foto resolusi penuh">
                         <img class="gallery-card-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
-                        <span class="gallery-card-badge">${photo.id}</span>
+                        <span class="gallery-card-badge">${safeId}</span>
                         <span class="gallery-photo-user-pill">🔒 Foto Saya</span>
                     </div>
                     <div class="gallery-card-info">
@@ -2744,7 +2765,7 @@
                         <div class="gallery-card-date">📅 ${dateStr}</div>
                     </div>
                     <div class="gallery-card-actions">
-                        <a href="${photo.url}" download="photoart_${photo.id}.${fileExt}" class="btn-card-action btn-download" title="Unduh Foto HD">
+                        <a href="${photo.url}" download="photoart_${safeId}.${fileExt}" class="btn-card-action btn-download" title="Unduh Foto HD">
                             <span>📥 Unduh</span>
                         </a>
                         <button type="button" class="btn-card-action" data-action="zoom" title="Lihat Layar Penuh">
@@ -3198,7 +3219,9 @@
         card.className = 'admin-media-card' + (photo.deleted ? ' is-deleted' : '');
 
         const theme = PhotoFrames.getTheme(photo.themeId);
-        const themeName = theme ? theme.name : (photo.themeId || 'PhotoArt');
+        const themeName = escapeHtml(theme ? theme.name : (photo.themeId || 'PhotoArt'));
+        const safeId = escapeHtml(photo.id);
+        const safeUserId = escapeHtml(photo.userId || 'User');
         const createdDate = formatDateTime(photo.createdAt);
         const deletedDate = photo.deletedAt ? formatDateTime(photo.deletedAt) : '';
         const fileExt = (photo.url && photo.url.endsWith('.png')) ? 'png' : 'jpg';
@@ -3212,8 +3235,8 @@
             </div>
             <div class="admin-card-body">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                    <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${photo.id}</strong></span>
-                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${photo.userId || 'User'}</span>
+                    <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${safeId}</strong></span>
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${safeUserId}</span>
                 </div>
                 <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">${themeName}</div>
                 <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">📅 Dibuat: ${createdDate}</div>
@@ -3222,10 +3245,10 @@
             <div class="admin-card-actions">
                 ${photo.deleted ? `
                     <button type="button" class="btn-restore-media" data-action="restore">
-                        <span>🔄 Pulihkan Foto ke ${photo.userId || 'User'}</span>
+                        <span>🔄 Pulihkan Foto ke ${safeUserId}</span>
                     </button>
                     <div class="admin-sub-actions">
-                        <a href="${photo.url}" download="photoart_${photo.id}.${fileExt}" class="btn-admin-small">
+                        <a href="${photo.url}" download="photoart_${safeId}.${fileExt}" class="btn-admin-small">
                             📥 Unduh
                         </a>
                         <button type="button" class="btn-admin-small btn-danger" data-action="perm-delete">
@@ -3234,7 +3257,7 @@
                     </div>
                 ` : `
                     <div class="admin-sub-actions">
-                        <a href="${photo.url}" download="photoart_${photo.id}.${fileExt}" class="btn-admin-small">
+                        <a href="${photo.url}" download="photoart_${safeId}.${fileExt}" class="btn-admin-small">
                             📥 Unduh Foto
                         </a>
                         <button type="button" class="btn-admin-small" data-action="zoom">
@@ -3564,12 +3587,12 @@
         if (elements.btnOpenBarcode) {
             elements.btnOpenBarcode.addEventListener('click', () => {
                 setupShareBarcode();
-                elements.modalBarcode.classList.add('show');
+                if (elements.modalBarcode) elements.modalBarcode.classList.add('show');
             });
         }
         if (elements.btnCloseBarcode) {
             elements.btnCloseBarcode.addEventListener('click', () => {
-                elements.modalBarcode.classList.remove('show');
+                if (elements.modalBarcode) elements.modalBarcode.classList.remove('show');
             });
         }
         if (elements.modalBarcode) {

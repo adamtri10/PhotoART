@@ -273,5 +273,91 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, {"success": True, "message": "Photo permanently deleted"})
             return
 
+        # 6. POST /api/custom-frames/upload
+        if path == "/api/custom-frames/upload":
+            admin_token = self.headers.get("X-Admin-Token")
+            if not admin_token:
+                self._send_json(401, {"success": False, "message": "Unauthorized: Hanya Admin yang dapat mengunggah bingkai"})
+                return
+
+            raw_data = body.get('frameDataUrl') or body.get('image', '')
+            frame_id = body.get('id') or f"frame_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+            record = {
+                "id": frame_id,
+                "name": body.get("name", "Frame Galeri"),
+                "subtitle": body.get("subtitle", "Custom Frame"),
+                "layout": body.get("layout", "strip_3"),
+                "layoutLabel": body.get("layoutLabel", "3 Foto (Strip)"),
+                "tag": body.get("tag", "🖼️ Custom Frame"),
+                "category": "custom",
+                "bg": body.get("bg", "#ffffff"),
+                "textColor": body.get("textColor", "#18181b"),
+                "subTextColor": body.get("subTextColor", "#71717a"),
+                "borderColor": body.get("borderColor", "#e4e4e7"),
+                "isCustom": True,
+                "renderMode": body.get("renderMode", "overlay"),
+                "marginChoice": body.get("marginChoice", "normal"),
+                "aspectRatio": body.get("aspectRatio"),
+                "naturalWidth": body.get("naturalWidth"),
+                "naturalHeight": body.get("naturalHeight"),
+                "hasAlphaHoles": body.get("hasAlphaHoles", False),
+                "detectedSlots": body.get("detectedSlots"),
+                "frameDataUrl": raw_data,
+                "url": raw_data,
+                "isPublished": body.get("isPublished", True),
+                "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+
+            db = get_frames_db()
+            db = [f for f in db if f.get('id') != frame_id]
+            db.insert(0, record)
+            save_frames_db(db)
+
+            self._send_json(200, {
+                "success": True,
+                "frame": record
+            })
+            return
+
+        # 7. POST /api/custom-frames/delete
+        if path == "/api/custom-frames/delete":
+            admin_token = self.headers.get("X-Admin-Token")
+            if not admin_token:
+                self._send_json(401, {"success": False, "message": "Unauthorized: Hanya Admin yang dapat menghapus bingkai"})
+                return
+
+            frame_id = body.get('id')
+            db = get_frames_db()
+            new_db = [f for f in db if f.get('id') != frame_id]
+            save_frames_db(new_db)
+            self._send_json(200, {"success": True, "message": "Frame berhasil dihapus"})
+            return
+
+        # 8. POST /api/custom-frames/toggle-publish
+        if path == "/api/custom-frames/toggle-publish":
+            admin_token = self.headers.get("X-Admin-Token")
+            if not admin_token:
+                self._send_json(401, {"success": False, "message": "Unauthorized: Hanya Admin yang dapat mengubah status publikasi"})
+                return
+
+            frame_id = body.get('id')
+            set_published = body.get('isPublished')
+            db = get_frames_db()
+            found = False
+            for f in db:
+                if f.get('id') == frame_id:
+                    if set_published is not None:
+                        f['isPublished'] = bool(set_published)
+                    else:
+                        f['isPublished'] = not f.get('isPublished', False)
+                    found = True
+                    break
+            if found:
+                save_frames_db(db)
+                self._send_json(200, {"success": True, "message": "Status publikasi diperbarui"})
+            else:
+                self._send_json(404, {"success": False, "message": "Frame tidak ditemukan"})
+            return
+
         self._send_json(404, {"error": f"Endpoint {path} not found"})
 
