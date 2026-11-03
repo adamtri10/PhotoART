@@ -1779,6 +1779,42 @@ main.app-main {
 /* ==========================================================================
    STEP 3: STUDIO EDITOR & EXHIBITION STAND MOTIFS
    ========================================================================== */
+.editor-header-banner {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 16px 12px;
+}
+
+.editor-header-badge {
+    display: inline-block;
+    background: rgba(244, 63, 94, 0.12);
+    border: 1px solid rgba(244, 63, 94, 0.35);
+    color: var(--brand-rose);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 12px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.editor-header-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text-pure);
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+}
+
+.editor-header-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 580px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
 .editor-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1792,25 +1828,167 @@ main.app-main {
     }
 }
 
-/* Studio Easel Canvas Wrapper */
-.canvas-preview-wrapper {
-    background: #f9fafb;
-    border-radius: var(--radius-lg);
-    border: 1.5px solid #e5e7eb;
-    padding: 16px 12px 14px;
+.editor-preview-column {
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
-    position: relative;
-    overflow: hidden;
+    width: 100%;
 }
 
 @media (min-width: 768px) {
-    .canvas-preview-wrapper {
+    .editor-preview-column {
         position: sticky;
         top: 76px;
-        padding: 24px 18px 20px;
+    }
+}
+
+/* Studio Easel Canvas Wrapper */
+.canvas-preview-wrapper {
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid #e2e8f0;
+    padding: 18px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+/* Quick Action Hub below Canvas (Instant Access on Mobile & Desktop) */
+.editor-quick-actions {
+    width: 100%;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-save-action {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 15px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 18px rgba(225, 29, 72, 0.35);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--brand-rose) 0%, #be123c 100%);
+    color: #ffffff;
+    border: none;
+    transition: var(--transition);
+}
+
+.btn-save-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(225, 29, 72, 0.45);
+}
+
+.editor-quick-secondary-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.btn-quick-item {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    border: 1px solid var(--border-medium);
+    color: var(--text-pure);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-quick-item:hover {
+    background: #f8fafc;
+    border-color: var(--brand-rose);
+    color: var(--brand-rose);
+}
+
+.btn-quick-retake {
+    color: #ef4444;
+    border-color: #fecaca;
+}
+
+.btn-quick-retake:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #b91c1c;
+}
+
+/* Mobile Tool Tabs */
+.editor-mobile-tabs {
+    display: none;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-subtle);
+}
+
+.editor-tab-pill {
+    flex: 1;
+    padding: 9px 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.editor-tab-pill.active {
+    background: #ffffff;
+    color: var(--brand-rose);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 767px) {
+    .editor-mobile-tabs {
+        display: flex;
+    }
+
+    .editor-pane {
+        display: none;
+    }
+
+    .editor-pane.active {
+        display: block;
+        animation: fadeInPane 0.2s ease-out;
+    }
+
+    .editor-extra-actions-card {
+        display: none !important;
+    }
+}
+
+@keyframes fadeInPane {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 768px) {
+    .editor-pane {
+        display: block !important;
     }
 }
 
@@ -3315,17 +3493,35 @@ main.app-main {
     }
 
     /* Step 3: Editor Canvas on Mobile */
-    .canvas-preview-wrapper {
-        padding: 12px 8px 10px;
+    .editor-header-banner {
+        padding: 10px 8px 14px;
         margin-bottom: 10px;
     }
 
+    .editor-header-title {
+        font-size: 19px;
+    }
+
+    .editor-header-desc {
+        font-size: 11.5px;
+    }
+
+    .canvas-preview-wrapper {
+        padding: 14px 10px 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
     #canvas-preview {
-        max-height: min(44vh, 350px);
+        max-height: min(52vh, 450px);
+        max-width: 100%;
         width: auto;
         height: auto;
+        object-fit: contain;
         display: block;
         margin: 0 auto;
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
     }
 
     .easel-clamp-bar {
@@ -3335,11 +3531,6 @@ main.app-main {
 
     .easel-signature-plate {
         margin-top: 8px;
-    }
-
-    .btn-save-to-gallery {
-        padding: 14px 18px !important;
-        font-size: 14px !important;
     }
 
     /* Step 4: User Gallery on Mobile */

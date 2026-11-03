@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/user", "destination": "/booth.html" },
+    { "source": "/booth", "destination": "/booth.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/operator", "destination": "/admin.html" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ]
+}
