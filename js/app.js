@@ -340,7 +340,7 @@
             }
         },
 
-        softDelete(photoId, userId) {
+        softDelete(photoId, userId = null) {
             try {
                 const all = this.getAll();
                 const updated = all.map(p => {
@@ -349,6 +349,35 @@
                     }
                     return p;
                 });
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+
+        restore(photoId) {
+            try {
+                const all = this.getAll();
+                const updated = all.map(p => {
+                    if (p.id === photoId) {
+                        const copy = { ...p, deleted: false };
+                        delete copy.deletedAt;
+                        return copy;
+                    }
+                    return p;
+                });
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+
+        permanentDelete(photoId) {
+            try {
+                const all = this.getAll();
+                const updated = all.filter(p => p.id !== photoId);
                 localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
                 return true;
             } catch (e) {
@@ -1469,8 +1498,16 @@
         }
 
         if (stepName === 'editor') {
+            populateEditorThemes();
+            populateEditorFilters();
+            populateStickers();
             renderCanvas();
             updateStickerControllerUI();
+            const activeTab = document.querySelector('.editor-tab-pill.active');
+            if (!activeTab) {
+                const firstPill = document.querySelector('.editor-tab-pill');
+                if (firstPill) firstPill.click();
+            }
         }
 
         if (stepName === 'gallery') {
@@ -1559,7 +1596,7 @@
     /**
      * Camera Handling with Robust Mobile Switching (Front <-> Rear)
      */
-    async function startCamera(preferredDeviceId = null) {
+    async function startCamera(targetMode = null) {
         if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
             if (elements.cameraNotice) elements.cameraNotice.style.display = 'block';
         } else {
@@ -1571,70 +1608,102 @@
             return;
         }
 
+        const mode = targetMode || state.facingMode || 'user';
+        state.facingMode = mode;
+
         try {
-            stopCamera();
-            // Jeda 180ms agar driver hardware kamera ponsel melepas lock sensor sebelumnya
-            await new Promise(r => setTimeout(r, 180));
-
-            let stream = null;
-            const targetMode = state.facingMode || 'user';
-
-            // 1. Coba dengan preferredDeviceId spesifik jika ditemukan dari enumerateDevices
-            if (preferredDeviceId) {
+            // Hentikan track sebelumnya dengan bersih tanpa mengosongkan srcObject agar tidak terjadi layar hitam seketika
+            if (state.cameraStream) {
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            deviceId: { exact: preferredDeviceId },
-                            width: { ideal: 1280 },
-                            height: { ideal: 960 }
-                        }
-                    });
-                } catch (devErr) {
-                    console.warn("Preferensi deviceId kamera gagal, beralih ke facingMode:", devErr);
-                }
+                    state.cameraStream.getTracks().forEach(t => t.stop());
+                } catch(e) {}
+                state.cameraStream = null;
             }
 
-            // 2. Coba exact facingMode (kunci kamera belakang/depan tanpa fallback salah)
-            if (!stream) {
+            // Jeda singkat pelepasan sensor hardware smartphone
+            await new Promise(r => setTimeout(r, 120));
+
+            let stream = null;
+            let lastErr = null;
+
+            // Strategi 1: Ideal facingMode dengan resolusi HD (Standar W3C mobile untuk kamera warna utama)
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: { ideal: mode },
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    }
+                });
+            } catch (err1) {
+                lastErr = err1;
+                // Strategi 2: Exact facingMode
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { exact: targetMode },
+                            facingMode: { exact: mode },
                             width: { ideal: 1280 },
                             height: { ideal: 960 }
                         }
                     });
-                } catch (exactErr) {
-                    // 3. Fallback ke ideal facingMode jika exact tidak didukung browser
+                } catch (err2) {
+                    lastErr = err2;
+                    // Strategi 3: Relaxed facingMode
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: {
-                                facingMode: { ideal: targetMode },
-                                width: { ideal: 1280 },
-                                height: { ideal: 960 }
-                            }
+                            video: { facingMode: mode }
                         });
-                    } catch (idealErr) {
-                        // 4. Relaxed fallback jika resolusi ditolak
+                    } catch (err3) {
+                        lastErr = err3;
+                        // Strategi 4: Fallback universal kamera apa pun
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { facingMode: targetMode }
+                            video: true
                         });
                     }
                 }
             }
 
-            state.cameraStream = stream;
-            if (elements.video) {
-                elements.video.setAttribute('playsinline', '');
-                elements.video.setAttribute('webkit-playsinline', '');
-                elements.video.muted = true;
-                elements.video.srcObject = stream;
-                await elements.video.play();
+            if (!stream) {
+                throw lastErr || new Error("Tidak dapat memperoleh stream kamera.");
             }
+
+            state.cameraStream = stream;
+
+            const video = elements.video;
+            if (video) {
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('webkit-playsinline', 'true');
+                video.muted = true;
+                video.playsInline = true;
+                video.srcObject = stream;
+
+                // Tunggu hingga metadata / frame siap sebelum diputar
+                await new Promise(resolve => {
+                    if (video.readyState >= 2) {
+                        resolve();
+                    } else {
+                        const onLoaded = () => {
+                            video.removeEventListener('loadedmetadata', onLoaded);
+                            video.removeEventListener('canplay', onLoaded);
+                            resolve();
+                        };
+                        video.addEventListener('loadedmetadata', onLoaded, { once: true });
+                        video.addEventListener('canplay', onLoaded, { once: true });
+                        setTimeout(resolve, 800);
+                    }
+                });
+
+                try {
+                    await video.play();
+                } catch(pErr) {
+                    console.warn("video.play() warning:", pErr);
+                }
+            }
+
             updateMirrorStyle();
             applyLiveFilter(state.selectedFilter);
             if (elements.cameraNotice) elements.cameraNotice.style.display = 'none';
@@ -1663,10 +1732,12 @@
     function toggleMirror() {
         state.isMirrored = !state.isMirrored;
         updateMirrorStyle();
+        showToast(state.isMirrored ? '🪞 Tampilan Cermin: Aktif' : '🪞 Tampilan Cermin: Normal', 'info', 1500);
     }
 
     function updateMirrorStyle() {
-        if (state.isMirrored && state.facingMode === 'user') {
+        if (!elements.video) return;
+        if (state.isMirrored) {
             elements.video.style.transform = 'scaleX(-1)';
         } else {
             elements.video.style.transform = 'scaleX(1)';
@@ -1674,49 +1745,27 @@
     }
 
     async function switchCamera() {
-        await deactivateFlashIllumination();
-        const nextMode = (state.facingMode === 'user') ? 'environment' : 'user';
-        state.facingMode = nextMode;
-        state.isMirrored = (nextMode === 'user');
+        if (state.isSwitchingCamera) return;
+        state.isSwitchingCamera = true;
 
-        showToast(nextMode === 'environment' ? '🔄 Menghubungkan ke Kamera Belakang...' : '🔄 Menghubungkan ke Kamera Depan...', 'info', 1600);
-
-        // Deteksi ID fisik kamera melalui enumerateDevices
-        let targetDeviceId = null;
         try {
-            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            await deactivateFlashIllumination();
+            const nextMode = (state.facingMode === 'user') ? 'environment' : 'user';
+            state.facingMode = nextMode;
+            state.isMirrored = (nextMode === 'user');
 
-                if (videoDevices.length > 1) {
-                    if (nextMode === 'environment') {
-                        // Cari kamera dengan label belakang / environment / rear
-                        const backDev = videoDevices.find(d => {
-                            const lbl = (d.label || '').toLowerCase();
-                            return lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('camera2 0');
-                        });
-                        targetDeviceId = backDev ? backDev.deviceId : videoDevices[videoDevices.length - 1].deviceId;
-                    } else {
-                        // Cari kamera depan / front / user
-                        const frontDev = videoDevices.find(d => {
-                            const lbl = (d.label || '').toLowerCase();
-                            return lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan');
-                        });
-                        targetDeviceId = frontDev ? frontDev.deviceId : videoDevices[0].deviceId;
-                    }
-                }
+            showToast(nextMode === 'environment' ? '🔄 Menghubungkan ke Kamera Belakang...' : '🔄 Menghubungkan ke Kamera Depan...', 'info', 1600);
+
+            await startCamera(nextMode);
+            updateFlashUI();
+
+            if (state.facingMode === 'environment') {
+                showToast('📷 Kamera Belakang Aktif' + (state.flashEnabled ? ' (Flash LED siap)' : ''), 'success', 2200);
+            } else {
+                showToast('🤳 Kamera Depan Aktif' + (state.flashEnabled ? ' (Flash Layar siap)' : ''), 'success', 2200);
             }
-        } catch (e) {
-            console.warn("Could not enumerate devices:", e);
-        }
-
-        await startCamera(targetDeviceId);
-        updateFlashUI();
-
-        if (state.facingMode === 'environment') {
-            showToast('📷 Kamera Belakang Aktif' + (state.flashEnabled ? ' (Flash LED siap)' : ''), 'success', 2200);
-        } else {
-            showToast('🤳 Kamera Depan Aktif' + (state.flashEnabled ? ' (Flash Layar siap)' : ''), 'success', 2200);
+        } finally {
+            state.isSwitchingCamera = false;
         }
     }
 
@@ -3098,94 +3147,7 @@
             elements.adminMediaGrid.innerHTML = '';
 
             targetPhotos.forEach(photo => {
-                const card = document.createElement('div');
-                card.className = 'admin-media-card' + (photo.deleted ? ' is-deleted' : '');
-
-                const theme = PhotoFrames.getTheme(photo.themeId);
-                const themeName = theme ? theme.name : (photo.themeId || 'PhotoArt');
-                const createdDate = formatDateTime(photo.createdAt);
-                const deletedDate = photo.deletedAt ? formatDateTime(photo.deletedAt) : '';
-
-                card.innerHTML = `
-                    <div class="admin-media-thumb-box" title="Klik untuk memperbesar">
-                        <img class="admin-media-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
-                        <span class="admin-status-pill ${photo.deleted ? 'status-deleted' : 'status-active'}">
-                            ${photo.deleted ? '🗑️ Terhapus User' : '🟢 Aktif di User'}
-                        </span>
-                    </div>
-                    <div class="admin-card-body">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                            <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${photo.id}</strong></span>
-                            <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${photo.userId || 'User A'}</span>
-                        </div>
-                        <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">${themeName}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">📅 Dibuat: ${createdDate}</div>
-                        ${photo.deleted ? `<div style="font-size: 10px; color: #dc2626; font-weight: 700; margin-top: 2px;">⚠️ Dihapus oleh User: ${deletedDate}</div>` : ''}
-                    </div>
-                    <div class="admin-card-actions">
-                        ${photo.deleted ? `
-                            <button type="button" class="btn-restore-media" data-action="restore">
-                                <span>🔄 Pulihkan Foto ke ${photo.userId || 'User'}</span>
-                            </button>
-                            <div class="admin-sub-actions">
-                                <a href="${photo.url}" download="photoart_${photo.id}.jpg" class="btn-admin-small">
-                                    📥 Unduh
-                                </a>
-                                <button type="button" class="btn-admin-small btn-danger" data-action="perm-delete">
-                                    ❌ Hapus Permanen
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="admin-sub-actions">
-                                <a href="${photo.url}" download="photoart_${photo.id}.jpg" class="btn-admin-small">
-                                    📥 Unduh Foto
-                                </a>
-                                <button type="button" class="btn-admin-small" data-action="zoom">
-                                    🔍 Zoom
-                                </button>
-                                <button type="button" class="btn-admin-small btn-danger" data-action="trash-move" title="Pindahkan ke Keranjang Sampah">
-                                    🗑️ Sampah
-                                </button>
-                            </div>
-                        `}
-                    </div>
-                `;
-
-                // Zoom click
-                const thumbBox = card.querySelector('.admin-media-thumb-box');
-                const handleZoom = () => openLightbox(photo.url, `Admin Media [${photo.deleted ? 'TERHAPUS' : 'AKTIF'}] • ID: ${photo.id} • ${themeName}`);
-                thumbBox.addEventListener('click', handleZoom);
-
-                const btnZoom = card.querySelector('[data-action="zoom"]');
-                if (btnZoom) btnZoom.addEventListener('click', handleZoom);
-
-                // Restore click
-                const btnRestore = card.querySelector('[data-action="restore"]');
-                if (btnRestore) {
-                    btnRestore.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        adminRestorePhoto(photo.id);
-                    });
-                }
-
-                // Permanent delete click
-                const btnPermDelete = card.querySelector('[data-action="perm-delete"]');
-                if (btnPermDelete) {
-                    btnPermDelete.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        adminPermanentDelete(photo.id);
-                    });
-                }
-
-                // Move to trash click
-                const btnTrashMove = card.querySelector('[data-action="trash-move"]');
-                if (btnTrashMove) {
-                    btnTrashMove.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        adminSoftDeletePhoto(photo.id);
-                    });
-                }
-
+                const card = createAdminPhotoCard(photo);
                 elements.adminMediaGrid.appendChild(card);
             });
         } catch (err) {
@@ -3225,46 +3187,112 @@
             elements.adminMediaGrid.innerHTML = '';
 
             targetPhotos.forEach(photo => {
-                const card = document.createElement('div');
-                card.className = 'admin-media-card' + (photo.deleted ? ' is-deleted' : '');
-
-                const theme = PhotoFrames.getTheme(photo.themeId);
-                const themeName = theme ? theme.name : (photo.themeId || 'PhotoArt');
-                const createdDate = formatDateTime(photo.createdAt);
-
-                card.innerHTML = `
-                    <div class="admin-media-thumb-box" title="Klik untuk memperbesar">
-                        <img class="admin-media-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
-                        <span class="admin-status-pill ${photo.deleted ? 'status-deleted' : 'status-active'}">
-                            ${photo.deleted ? '🗑️ Terhapus User' : '🟢 Aktif di User'}
-                        </span>
-                    </div>
-                    <div class="admin-card-body">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                            <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${photo.id}</strong></span>
-                            <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${photo.userId || 'User'}</span>
-                        </div>
-                        <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">${themeName}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">📅 Dibuat: ${createdDate}</div>
-                    </div>
-                    <div class="admin-card-actions">
-                        <a href="${photo.url}" download="photoart_${photo.id}.png" class="btn-admin-small" style="text-align: center; width: 100%;">
-                            📥 Unduh Foto
-                        </a>
-                    </div>
-                `;
-
-                const thumbBox = card.querySelector('.admin-media-thumb-box');
-                thumbBox.addEventListener('click', () => openLightbox(photo.url, `ID: ${photo.id} • ${themeName}`));
-
+                const card = createAdminPhotoCard(photo);
                 elements.adminMediaGrid.appendChild(card);
             });
         }
     }
 
+    function createAdminPhotoCard(photo) {
+        const card = document.createElement('div');
+        card.className = 'admin-media-card' + (photo.deleted ? ' is-deleted' : '');
+
+        const theme = PhotoFrames.getTheme(photo.themeId);
+        const themeName = theme ? theme.name : (photo.themeId || 'PhotoArt');
+        const createdDate = formatDateTime(photo.createdAt);
+        const deletedDate = photo.deletedAt ? formatDateTime(photo.deletedAt) : '';
+        const fileExt = (photo.url && photo.url.endsWith('.png')) ? 'png' : 'jpg';
+
+        card.innerHTML = `
+            <div class="admin-media-thumb-box" title="Klik untuk memperbesar">
+                <img class="admin-media-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
+                <span class="admin-status-pill ${photo.deleted ? 'status-deleted' : 'status-active'}">
+                    ${photo.deleted ? '🗑️ Terhapus User' : '🟢 Aktif di User'}
+                </span>
+            </div>
+            <div class="admin-card-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${photo.id}</strong></span>
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${photo.userId || 'User'}</span>
+                </div>
+                <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">${themeName}</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">📅 Dibuat: ${createdDate}</div>
+                ${photo.deleted ? `<div style="font-size: 10px; color: #dc2626; font-weight: 700; margin-top: 2px;">⚠️ Dihapus oleh User: ${deletedDate}</div>` : ''}
+            </div>
+            <div class="admin-card-actions">
+                ${photo.deleted ? `
+                    <button type="button" class="btn-restore-media" data-action="restore">
+                        <span>🔄 Pulihkan Foto ke ${photo.userId || 'User'}</span>
+                    </button>
+                    <div class="admin-sub-actions">
+                        <a href="${photo.url}" download="photoart_${photo.id}.${fileExt}" class="btn-admin-small">
+                            📥 Unduh
+                        </a>
+                        <button type="button" class="btn-admin-small btn-danger" data-action="perm-delete">
+                            ❌ Hapus Permanen
+                        </button>
+                    </div>
+                ` : `
+                    <div class="admin-sub-actions">
+                        <a href="${photo.url}" download="photoart_${photo.id}.${fileExt}" class="btn-admin-small">
+                            📥 Unduh Foto
+                        </a>
+                        <button type="button" class="btn-admin-small" data-action="zoom">
+                            🔍 Zoom
+                        </button>
+                        <button type="button" class="btn-admin-small btn-danger" data-action="trash-move" title="Pindahkan ke Keranjang Sampah">
+                            🗑️ Sampah
+                        </button>
+                    </div>
+                `}
+            </div>
+        `;
+
+        // Zoom click
+        const thumbBox = card.querySelector('.admin-media-thumb-box');
+        const handleZoom = () => openLightbox(photo.url, `Admin Media [${photo.deleted ? 'TERHAPUS' : 'AKTIF'}] • ID: ${photo.id} • ${themeName}`);
+        if (thumbBox) thumbBox.addEventListener('click', handleZoom);
+
+        const btnZoom = card.querySelector('[data-action="zoom"]');
+        if (btnZoom) btnZoom.addEventListener('click', handleZoom);
+
+        // Restore click
+        const btnRestore = card.querySelector('[data-action="restore"]');
+        if (btnRestore) {
+            btnRestore.addEventListener('click', (e) => {
+                e.stopPropagation();
+                adminRestorePhoto(photo.id);
+            });
+        }
+
+        // Permanent delete click
+        const btnPermDelete = card.querySelector('[data-action="perm-delete"]');
+        if (btnPermDelete) {
+            btnPermDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
+                adminPermanentDelete(photo.id);
+            });
+        }
+
+        // Move to trash click
+        const btnTrashMove = card.querySelector('[data-action="trash-move"]');
+        if (btnTrashMove) {
+            btnTrashMove.addEventListener('click', (e) => {
+                e.stopPropagation();
+                adminSoftDeletePhoto(photo.id);
+            });
+        }
+
+        return card;
+    }
+
     async function adminRestorePhoto(id) {
+        // 1. Selalu pulihkan di penyimpanan lokal PhotoStorage
+        PhotoStorage.restore(id);
+
+        // 2. Coba pulihkan di server jika backend aktif
         try {
-            const res = await fetch('/api/admin/restore', {
+            await fetch('/api/admin/restore', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -3272,27 +3300,26 @@
                 },
                 body: JSON.stringify({ id: id })
             });
-
-            const data = await res.json();
-            if (res.ok && data.success) {
-                showToast('✅ Foto berhasil dipulihkan! Sekarang sudah muncul kembali di Galeri User.', 'success');
-                loadAdminDashboard();
-                updateGalleryBadge();
-            } else {
-                showToast('Gagal memulihkan foto: ' + (data.error || 'Server error'), 'error');
-            }
         } catch (e) {
-            showToast('Koneksi terputus ke server.', 'error');
+            console.warn("Server restore sync notice:", e);
         }
+
+        showToast('✅ Foto berhasil dipulihkan! Sekarang sudah muncul kembali di Galeri Pengunjung.', 'success', 3500);
+        await loadAdminDashboard();
+        await updateGalleryBadge();
     }
 
     async function adminPermanentDelete(id) {
-        if (!confirm('PERINGATAN: Foto akan dihapus secara permanen dari server dan file disk tidak dapat dikembalikan lagi. Lanjutkan?')) {
+        if (!confirm('PERINGATAN: Foto akan dihapus secara permanen dan tidak dapat dikembalikan lagi. Lanjutkan?')) {
             return;
         }
 
+        // 1. Hapus dari PhotoStorage lokal
+        PhotoStorage.permanentDelete(id);
+
+        // 2. Coba hapus di server jika online
         try {
-            const res = await fetch('/api/admin/permanent-delete', {
+            await fetch('/api/admin/permanent-delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -3300,18 +3327,13 @@
                 },
                 body: JSON.stringify({ id: id })
             });
-
-            const data = await res.json();
-            if (res.ok && data.success) {
-                showToast('🗑️ Foto telah dihapus secara permanen dari server.', 'info');
-                loadAdminDashboard();
-                updateGalleryBadge();
-            } else {
-                showToast('Gagal menghapus: ' + (data.error || 'Server error'), 'error');
-            }
         } catch (e) {
-            showToast('Koneksi terputus ke server.', 'error');
+            console.warn("Server permanent delete notice:", e);
         }
+
+        showToast('🗑️ Foto telah dihapus secara permanen.', 'info');
+        await loadAdminDashboard();
+        await updateGalleryBadge();
     }
 
     async function adminSoftDeletePhoto(id) {
@@ -3319,24 +3341,21 @@
             return;
         }
 
+        // 1. Soft delete di PhotoStorage lokal
+        PhotoStorage.softDelete(id);
+
+        // 2. Coba kirim ke server jika online
         try {
-            const res = await fetch('/api/photos/delete', {
+            await fetch('/api/photos/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
             });
+        } catch (e) {}
 
-            const data = await res.json();
-            if (res.ok && data.success) {
-                showToast('Foto dipindahkan ke Keranjang Sampah.', 'info');
-                loadAdminDashboard();
-                updateGalleryBadge();
-            } else {
-                showToast('Gagal: ' + (data.error || 'Server error'), 'error');
-            }
-        } catch (e) {
-            showToast('Koneksi terputus ke server.', 'error');
-        }
+        showToast('🗑️ Foto dipindahkan ke Keranjang Sampah.', 'info');
+        await loadAdminDashboard();
+        await updateGalleryBadge();
     }
 
     // Window helpers for reload buttons

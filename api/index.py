@@ -260,5 +260,18 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(404, {"success": False, "error": "Photo not found"})
             return
 
+        # 5. POST /api/admin/permanent-delete
+        if path == "/api/admin/permanent-delete":
+            admin_token = self.headers.get("X-Admin-Token")
+            if not admin_token:
+                self._send_json(401, {"error": "Unauthorized"})
+                return
+            photo_id = body.get("id")
+            photos = get_photos_db()
+            new_photos = [p for p in photos if p.get("id") != photo_id]
+            save_photos_db(new_photos)
+            self._send_json(200, {"success": True, "message": "Photo permanently deleted"})
+            return
+
         self._send_json(404, {"error": f"Endpoint {path} not found"})
 
