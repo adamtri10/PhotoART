@@ -261,3 +261,4 @@ class handler(BaseHTTPRequestHandler):
             return
 
         self._send_json(404, {"error": f"Endpoint {path} not found"})
+
