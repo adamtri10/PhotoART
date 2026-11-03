@@ -1159,60 +1159,46 @@
     }
 
     /**
-     * Stickers palette with Cute Animals, Sweet Flowers, Deco Elements & Gundam Mecha
+     * Stickers palette with Curated Expressions, Sparkles, Pets, and Studio Accents
      */
     function populateStickers() {
         if (!elements.stickersContainer) return;
         elements.stickersContainer.innerHTML = '';
 
-        // 1. Sparkles, Badges & Studio Accents (Dekorasi Estetis)
-        const decoStickers = ['✨', '⭐', '💫', '⚡', '💖', '👑', '🕶️', '🎬', '📸', '🎞️', '🔥', '☕', '🎧', '🎀', '🧁', '🌈'];
-
-        // 2. Gundam Mecha Stickers (4 Authentic Robot Choices)
-        const gundamStickers = [
-            { type: 'gundam_mecha', label: 'Robot RX-78-2', img: 'assets/gundam_deco_mecha.png', size: 125 },
-            { type: 'gundam_logo', label: 'Logo Katakana ガンダム', img: 'assets/gundam_deco_logo_jp.png', size: 110 },
-            { type: 'gundam_efsf', label: 'Badge E.F.S.F.', img: 'assets/gundam_deco_efsf.png', size: 95 },
-            { type: 'gundam_hazard', label: 'Caution Stensil', img: 'assets/gundam_deco_hazard.png', size: 110 }
+        const stickersList = [
+            // Row 1: Sparkles & Aesthetic Accents
+            '✨', '⭐', '💫', '⚡', '🔥', '👑', '🕶️', '🎀',
+            // Row 2: Cute Hearts & Expressions
+            '💖', '💝', '🥰', '😎', '🥳', '🤩', '✌️', '🫶',
+            // Row 3: Studio & Fun Vibes
+            '📸', '🎞️', '🎬', '☕', '🧁', '🎉', '🎈', '💋',
+            // Row 4: Pets & Nature
+            '🐱', '🐶', '🐰', '🐼', '🌸', '🍀', '🌈', '🦋'
         ];
 
-        // Add Aesthetic Deco Stickers
-        decoStickers.forEach(emoji => {
+        stickersList.forEach(emoji => {
             const btn = document.createElement('button');
-            btn.className = 'sticker-chip sticker-chip-deco';
+            btn.className = 'sticker-chip';
             btn.type = 'button';
-            btn.title = 'Hiasan ' + emoji;
+            btn.title = 'Tambah Stiker ' + emoji;
             btn.innerText = emoji;
             btn.onclick = () => addSticker(emoji);
             elements.stickersContainer.appendChild(btn);
         });
-
-        // Add Gundam Robot Stickers
-        gundamStickers.forEach(g => {
-            const btn = document.createElement('button');
-            btn.className = 'sticker-chip gundam-chip';
-            btn.type = 'button';
-            btn.title = 'Hiasan Robot ' + g.label;
-            btn.innerHTML = `<img src="${g.img}" alt="${g.label}">`;
-            btn.onclick = () => addSticker(g.type, g.size);
-            elements.stickersContainer.appendChild(btn);
-        });
     }
 
-    function addSticker(typeOrEmoji, customSize) {
+    function addSticker(emoji, customSize = null) {
         const canvas = elements.canvasPreview;
-        const cw = canvas ? canvas.width : 800;
-        const ch = canvas ? canvas.height : 1000;
-
-        const isGundam = (typeof typeOrEmoji === 'string' && typeOrEmoji.startsWith('gundam'));
-        const size = customSize || (isGundam ? 110 : 64);
+        const cw = canvas ? canvas.width : 840;
+        const ch = canvas ? canvas.height : 1200;
+        const size = customSize || 76;
 
         const newSt = {
             id: Date.now() + Math.random(),
-            type: isGundam ? typeOrEmoji : 'emoji',
-            emoji: isGundam ? '' : typeOrEmoji,
-            x: Math.round(cw / 2 + (Math.random() * 120 - 60)),
-            y: Math.round(ch / 2 + (Math.random() * 120 - 60)),
+            type: 'emoji',
+            emoji: emoji || '✨',
+            x: Math.round(cw / 2 + (Math.random() * 80 - 40)),
+            y: Math.round(ch / 2 + (Math.random() * 80 - 40)),
             size: size,
             rotation: 0
         };
@@ -1506,10 +1492,12 @@
             populateStickers();
             renderCanvas();
             updateStickerControllerUI();
-            const activeTab = document.querySelector('.editor-tab-pill.active');
+            let activeTab = document.querySelector('.editor-tab-pill.active');
             if (!activeTab) {
-                const firstPill = document.querySelector('.editor-tab-pill');
-                if (firstPill) firstPill.click();
+                activeTab = document.querySelector('.editor-tab-pill');
+            }
+            if (activeTab) {
+                activeTab.click();
             }
         }
 
@@ -2422,56 +2410,22 @@
                 ctx.rotate((st.rotation * Math.PI) / 180);
             }
 
-            if (typeof st.type === 'string' && st.type.startsWith('gundam')) {
-                let img = PhotoFrames.gundamDecoMecha;
-                let aspect = 220 / 200;
-                let widthMult = 1.0;
-
-                if (st.type === 'gundam_logo') {
-                    img = PhotoFrames.gundamDecoLogoJp;
-                    aspect = 80 / 280;
-                    widthMult = 1.7;
-                } else if (st.type === 'gundam_efsf') {
-                    img = PhotoFrames.gundamDecoEfsf;
-                    aspect = 85 / 200;
-                    widthMult = 1.35;
-                } else if (st.type === 'gundam_hazard') {
-                    img = PhotoFrames.gundamDecoHazard;
-                    aspect = 70 / 260;
-                    widthMult = 1.7;
-                } else {
-                    img = PhotoFrames.gundamDecoMecha;
-                    aspect = 220 / 200;
-                    widthMult = 1.05;
-                }
-
-                const sw = Math.round(st.size * widthMult * scaleFactor);
-                const sh = Math.round(sw * aspect);
-
-                if (img && img.complete && img.naturalWidth > 0) {
-                    ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
-                    ctx.shadowBlur = Math.round(10 * scaleFactor);
-                    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
-                } else {
-                    ctx.fillStyle = '#0284c7';
-                    ctx.fillRect(-sw / 2, -sh / 2, sw, sh);
-                }
-            } else {
-                ctx.font = `${Math.round(st.size * scaleFactor)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(st.emoji, 0, 0);
-            }
+            // Render sticker emoji dengan font emoji tajam resolusi tinggi
+            const fontSize = Math.round((st.size || 76) * scaleFactor);
+            ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(st.emoji || '✨', 0, 0);
             ctx.restore();
 
             // Selection ring hanya saat preview aktif (bukan saat export HD)
             if (!isExport && st.id === state.selectedStickerId && !targetCanvas) {
                 ctx.save();
-                ctx.strokeStyle = '#ec4899';
+                ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 2.5;
-                ctx.setLineDash([6, 6]);
+                ctx.setLineDash([5, 5]);
                 ctx.beginPath();
-                const ringR = (typeof st.type === 'string' && st.type.startsWith('gundam')) ? st.size * 0.85 : st.size * 0.75;
+                const ringR = (st.size || 76) * 0.72;
                 ctx.arc(st.x, st.y, ringR, 0, Math.PI * 2);
                 ctx.stroke();
 

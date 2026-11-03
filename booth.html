@@ -356,8 +356,8 @@
                             </svg>
                         </button>
                         <div class="editor-quick-secondary-row">
-                            <button id="btn-download-direct" class="btn-secondary btn-quick-item" type="button" title="Unduh Foto HD">
-                                <span>📥 Unduh ke HP</span>
+                            <button id="btn-download-direct" class="btn-secondary btn-quick-item" type="button" title="Unduh Foto HD Langsung">
+                                <span>📥 Unduh Foto</span>
                             </button>
                             <button id="btn-share-final" class="btn-secondary btn-quick-item" type="button" title="Bagikan Foto">
                                 <span>↗️ Bagikan</span>
@@ -372,16 +372,16 @@
                 <!-- Controls Column (Studio Toolbox) -->
                 <div class="editor-controls">
                     
-                    <!-- Mobile Tool Tabs Navigation (Clutter-Free Gadget Experience) -->
+                    <!-- Universal Tool Tabs Navigation (Mobile & Desktop) -->
                     <div class="editor-mobile-tabs" role="tablist">
                         <button type="button" class="editor-tab-pill active" data-editor-pane="pane-frame">
-                            🎨 Bingkai
+                            <span>🎨</span> <span>Bingkai</span>
                         </button>
                         <button type="button" class="editor-tab-pill" data-editor-pane="pane-filter">
-                            🌈 Filter
+                            <span>🌈</span> <span>Filter</span>
                         </button>
                         <button type="button" class="editor-tab-pill" data-editor-pane="pane-sticker">
-                            ✨ Stiker
+                            <span>✨</span> <span>Stiker</span>
                         </button>
                     </div>
 
@@ -415,8 +415,8 @@
                         <h2 class="card-title">
                             <span>🌈</span> Filter Warna Foto
                         </h2>
-                        <p class="card-subtitle">Ubah nuansa warna seluruh foto dengan filter estetik:</p>
-                        <div id="editor-filters-container" class="chips-scroller">
+                        <p class="card-subtitle">Pilih nuansa warna foto yang Anda inginkan (ketuk kartu untuk melihat perubahan):</p>
+                        <div id="editor-filters-container" class="editor-filters-grid">
                             <!-- Populated dynamically via js/app.js with realistic photo icons -->
                         </div>
                     </div>
@@ -431,7 +431,7 @@
                                 Hapus Semua
                             </button>
                         </div>
-                        <p class="card-subtitle">Ketuk stiker untuk menambahkan dekorasi pada foto:</p>
+                        <p class="card-subtitle">Ketuk stiker untuk menempelkannya pada foto (dapat digeser langsung):</p>
                         
                         <div id="stickers-container" class="stickers-palette">
                             <!-- Populated dynamically via js/app.js -->
@@ -440,37 +440,43 @@
                         <!-- Interactive Sticker Position & Size Controller -->
                         <div id="sticker-controller-panel" class="sticker-controller-panel" style="display: none;">
                             <div class="sticker-controller-header">
-                                <span style="font-weight: 700; color: #fb7185; font-size: 12px;">🎯 Atur Posisi & Ukuran:</span>
-                                <button id="btn-delete-selected-sticker" type="button" class="btn-delete-active-sticker" title="Hapus Stiker Ini">🗑️ Hapus</button>
+                                <span class="sticker-controller-title">🎯 Atur Stiker Terpilih</span>
+                                <button id="btn-delete-selected-sticker" type="button" class="btn-delete-active-sticker" title="Hapus Stiker Ini">🗑️ Hapus Stiker</button>
                             </div>
 
-                            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-                                <em>Sentuh langsung stikernya di foto untuk geser bebas, atau gunakan tombol cepat di bawah:</em>
+                            <p class="sticker-controller-hint">
+                                Geser langsung stiker di foto atau gunakan tombol cepat:
                             </p>
 
-                            <!-- Quick Placement Buttons -->
+                            <!-- Quick Placement Buttons (5 Equal Grid Columns) -->
                             <div class="sticker-preset-buttons">
-                                <button type="button" class="sticker-pos-btn" data-pos="top-left">↖️ Kiri Atas</button>
-                                <button type="button" class="sticker-pos-btn" data-pos="top-right">↗️ Kanan Atas</button>
-                                <button type="button" class="sticker-pos-btn" data-pos="center">⏺️ Tengah</button>
-                                <button type="button" class="sticker-pos-btn" data-pos="bottom-left">↙️ Kiri Bawah</button>
-                                <button type="button" class="sticker-pos-btn" data-pos="bottom-right">↘️ Kanan Bawah</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="top-left" title="Posisi Kiri Atas">↖️ Kiri</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="top-right" title="Posisi Kanan Atas">↗️ Kanan</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="center" title="Posisi Tengah">⏺️ Tengah</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="bottom-left" title="Posisi Kiri Bawah">↙️ Kiri</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="bottom-right" title="Posisi Kanan Bawah">↘️ Kanan</button>
                             </div>
 
                             <!-- Fine-tuning D-Pad & Size -->
-                            <div class="sticker-finetune-row">
-                                <div class="sticker-dpad">
-                                    <button type="button" class="sticker-dpad-btn" data-move="up">⬆️</button>
-                                    <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="sticker-dpad-btn" data-move="left">⬅️</button>
-                                        <button type="button" class="sticker-dpad-btn" data-move="down">⬇️</button>
-                                        <button type="button" class="sticker-dpad-btn" data-move="right">➡️</button>
+                            <div class="sticker-finetune-box">
+                                <div class="sticker-dpad-group">
+                                    <button type="button" class="sticker-dpad-btn" data-move="up" title="Geser ke Atas">⬆️</button>
+                                    <div class="sticker-dpad-middle">
+                                        <button type="button" class="sticker-dpad-btn" data-move="left" title="Geser ke Kiri">⬅️</button>
+                                        <button type="button" class="sticker-dpad-btn" data-move="down" title="Geser ke Bawah">⬇️</button>
+                                        <button type="button" class="sticker-dpad-btn" data-move="right" title="Geser ke Kanan">➡️</button>
                                     </div>
                                 </div>
-                                <div class="sticker-size-controls">
-                                    <button type="button" class="btn-size-sticker" id="btn-sticker-bigger">➕ Besar</button>
-                                    <button type="button" class="btn-size-sticker" id="btn-sticker-smaller">➖ Kecil</button>
-                                    <button type="button" class="btn-size-sticker" id="btn-sticker-rotate">🔄 Putar</button>
+                                <div class="sticker-size-group">
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-bigger">
+                                        <span>➕ Perbesar</span>
+                                    </button>
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-smaller">
+                                        <span>➖ Perkecil</span>
+                                    </button>
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-rotate">
+                                        <span>🔄 Putar 15°</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
