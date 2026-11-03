@@ -483,7 +483,9 @@
         countdownNumber: document.getElementById('countdown-number'),
         btnCapture: document.getElementById('btn-capture'),
         btnSwitchCamera: document.getElementById('btn-switch-camera'),
+        switchCameraLabel: document.getElementById('switch-camera-label'),
         btnToggleMirror: document.getElementById('btn-toggle-mirror'),
+        mirrorBtnText: document.getElementById('mirror-btn-text'),
         btnToggleFlash: document.getElementById('btn-toggle-flash'),
         flashBtnText: document.getElementById('flash-btn-text'),
         hudFlashIndicator: document.getElementById('hud-flash-indicator'),
@@ -1490,6 +1492,7 @@
                 elements.cameraCurrentFrameBadge.innerHTML = `🎞️ Bingkai: <strong>${theme.name}</strong> <span style="opacity: 0.8; font-size: 10px;">(${theme.layoutLabel})</span>`;
             }
             startCamera();
+            updateCameraControlsUI();
             updateFlashUI();
             updateShotThumbnails();
             applyLiveFilter(state.selectedFilter);
@@ -1596,6 +1599,200 @@
     /**
      * Camera Handling with Robust Mobile Switching (Front <-> Rear)
      */
+    async function acquireCameraStream(targetMode) {
+        let stream = null;
+        let lastError = null;
+
+        // 1. Dapatkan daftar device kamera (jika browser mengizinkan enumerateDevices)
+        let videoDevices = [];
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                const all = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = all.filter(d => d.kind === 'videoinput');
+            }
+        } catch (e) {
+            console.warn("enumerateDevices warning:", e);
+        }
+
+        // Cari ID kamera yang sedang aktif saat ini
+        let currentDeviceId = null;
+        if (state.cameraStream) {
+            const curTracks = state.cameraStream.getVideoTracks();
+            if (curTracks.length > 0 && curTracks[0].getSettings) {
+                currentDeviceId = curTracks[0].getSettings().deviceId;
+            }
+        }
+
+        if (targetMode === 'environment') {
+            // ============================================
+            // TARGET: KAMERA BELAKANG (REAR CAMERA)
+            // ============================================
+
+            // A1: Standar W3C paling kuat - exact facingMode environment dengan resolusi HD
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: { exact: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+            } catch (errA1) {
+                lastError = errA1;
+                // A2: Coba exact facingMode tanpa batasan resolusi (untuk sensor dengan rasio khusus)
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { exact: 'environment' }
+                        }
+                    });
+                } catch (errA2) {
+                    lastError = errA2;
+                }
+            }
+
+            // A3: Jika exact ditolak (misal bug WebView/Android), deteksi deviceId kamera belakang via enumerateDevices
+            if (!stream && videoDevices.length > 0) {
+                // Cari kamera belakang utama (hindari sensor depth, tof, ir, macro, virtual)
+                let backDev = videoDevices.find(d => {
+                    const lbl = (d.label || '').toLowerCase();
+                    return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back') || lbl.includes('0, facing back'))
+                        && !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir') && !lbl.includes('virtual');
+                });
+
+                // Jika filter ketat tidak ketemu, cari device berlabel belakang apa pun yang bukan depth/tof
+                if (!backDev) {
+                    backDev = videoDevices.find(d => {
+                        const lbl = (d.label || '').toLowerCase();
+                        return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('belakang') || lbl.includes('environment'))
+                            && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
+                    });
+                }
+
+                // Jika label device kosong (belum berizin/anonim) tapi ada lebih dari 1 kamera, pilih yang bukan kamera saat ini
+                if (!backDev && videoDevices.length > 1 && currentDeviceId) {
+                    backDev = videoDevices.find(d => d.deviceId !== currentDeviceId && !d.label.toLowerCase().includes('depth'));
+                }
+
+                if (backDev && backDev.deviceId) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: {
+                                deviceId: { exact: backDev.deviceId },
+                                width: { ideal: 1920 },
+                                height: { ideal: 1080 }
+                            }
+                        });
+                    } catch (errA3) {
+                        lastError = errA3;
+                    }
+                }
+            }
+
+            // A4: Fallback ideal facingMode environment jika exact tidak didukung
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    });
+                } catch (errA4) {
+                    lastError = errA4;
+                }
+            }
+        } else {
+            // ============================================
+            // TARGET: KAMERA DEPAN (FRONT / SELFIE CAMERA)
+            // ============================================
+
+            // B1: Standar W3C exact facingMode user
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: { exact: 'user' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+            } catch (errB1) {
+                lastError = errB1;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { exact: 'user' }
+                        }
+                    });
+                } catch (errB2) {
+                    lastError = errB2;
+                }
+            }
+
+            // B2: Deteksi deviceId kamera depan
+            if (!stream && videoDevices.length > 0) {
+                let frontDev = videoDevices.find(d => {
+                    const lbl = (d.label || '').toLowerCase();
+                    return lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front');
+                });
+
+                if (!frontDev && videoDevices.length > 1 && currentDeviceId) {
+                    frontDev = videoDevices.find(d => d.deviceId !== currentDeviceId);
+                }
+
+                if (frontDev && frontDev.deviceId) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: {
+                                deviceId: { exact: frontDev.deviceId },
+                                width: { ideal: 1920 },
+                                height: { ideal: 1080 }
+                            }
+                        });
+                    } catch (errB3) {
+                        lastError = errB3;
+                    }
+                }
+            }
+
+            // B3: Fallback ideal user
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { ideal: 'user' }
+                        }
+                    });
+                } catch (errB4) {
+                    lastError = errB4;
+                }
+            }
+        }
+
+        // C: Fallback darurat kamera apa pun yang tersedia
+        if (!stream) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: true
+                });
+            } catch (errC) {
+                throw lastError || errC || new Error("Tidak dapat mengakses kamera perangkat.");
+            }
+        }
+
+        return stream;
+    }
+
     async function startCamera(targetMode = null) {
         if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
             if (elements.cameraNotice) elements.cameraNotice.style.display = 'block';
@@ -1608,11 +1805,13 @@
             return;
         }
 
-        const mode = targetMode || state.facingMode || 'user';
-        state.facingMode = mode;
+        const requestedMode = targetMode || state.facingMode || 'user';
 
         try {
-            // Hentikan track sebelumnya dengan bersih tanpa mengosongkan srcObject agar tidak terjadi layar hitam seketika
+            // 1. Matikan flash / lampu LED
+            await deactivateFlashIllumination();
+
+            // 2. Hentikan track kamera sebelumnya secara bersih
             if (state.cameraStream) {
                 try {
                     state.cameraStream.getTracks().forEach(t => t.stop());
@@ -1620,61 +1819,44 @@
                 state.cameraStream = null;
             }
 
-            // Jeda singkat pelepasan sensor hardware smartphone
-            await new Promise(r => setTimeout(r, 120));
+            // 3. Jeda jeda pelepasan hardware lock kamera pada chipset smartphone (180ms)
+            await new Promise(r => setTimeout(r, 180));
 
-            let stream = null;
-            let lastErr = null;
-
-            // Strategi 1: Ideal facingMode dengan resolusi HD (Standar W3C mobile untuk kamera warna utama)
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: {
-                        facingMode: { ideal: mode },
-                        width: { ideal: 1280 },
-                        height: { ideal: 960 }
-                    }
-                });
-            } catch (err1) {
-                lastErr = err1;
-                // Strategi 2: Exact facingMode
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            facingMode: { exact: mode },
-                            width: { ideal: 1280 },
-                            height: { ideal: 960 }
-                        }
-                    });
-                } catch (err2) {
-                    lastErr = err2;
-                    // Strategi 3: Relaxed facingMode
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            audio: false,
-                            video: { facingMode: mode }
-                        });
-                    } catch (err3) {
-                        lastErr = err3;
-                        // Strategi 4: Fallback universal kamera apa pun
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            audio: false,
-                            video: true
-                        });
-                    }
-                }
-            }
-
+            // 4. Peroleh stream kamera baru
+            const stream = await acquireCameraStream(requestedMode);
             if (!stream) {
-                throw lastErr || new Error("Tidak dapat memperoleh stream kamera.");
+                throw new Error("Gagal memperoleh stream kamera.");
             }
 
             state.cameraStream = stream;
 
+            // 5. Analisis hardware yang sebenarnya diperoleh dari browser
+            const track = stream.getVideoTracks()[0];
+            const settings = (track && typeof track.getSettings === 'function') ? track.getSettings() : {};
+            const actualFacing = settings.facingMode;
+
+            if (requestedMode === 'environment') {
+                if (actualFacing === 'user') {
+                    // Browser mengembalikan kamera depan (perangkat tidak memiliki kamera belakang fisik)
+                    state.facingMode = 'user';
+                    state.isMirrored = true;
+                    showToast('ℹ️ Perangkat hanya memiliki kamera depan / webcam.', 'info', 2800);
+                } else {
+                    // Berhasil membuka kamera belakang
+                    state.facingMode = 'environment';
+                    state.isMirrored = false;
+                    showToast('📷 Kamera Belakang Aktif' + (state.flashEnabled ? ' (Flash LED siap)' : ''), 'success', 2200);
+                }
+            } else {
+                state.facingMode = 'user';
+                state.isMirrored = true;
+                showToast('🤳 Kamera Depan Aktif' + (state.flashEnabled ? ' (Flash Layar siap)' : ''), 'success', 2200);
+            }
+
+            // 6. Hubungkan ke elemen video tanpa jeda layar hitam
             const video = elements.video;
             if (video) {
+                video.srcObject = null;
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('webkit-playsinline', 'true');
                 video.muted = true;
@@ -1683,18 +1865,17 @@
 
                 // Tunggu hingga metadata / frame siap sebelum diputar
                 await new Promise(resolve => {
-                    if (video.readyState >= 2) {
-                        resolve();
-                    } else {
-                        const onLoaded = () => {
-                            video.removeEventListener('loadedmetadata', onLoaded);
-                            video.removeEventListener('canplay', onLoaded);
+                    let resolved = false;
+                    const finish = () => {
+                        if (!resolved) {
+                            resolved = true;
                             resolve();
-                        };
-                        video.addEventListener('loadedmetadata', onLoaded, { once: true });
-                        video.addEventListener('canplay', onLoaded, { once: true });
-                        setTimeout(resolve, 800);
-                    }
+                        }
+                    };
+                    video.addEventListener('loadeddata', finish, { once: true });
+                    video.addEventListener('loadedmetadata', finish, { once: true });
+                    video.addEventListener('canplay', finish, { once: true });
+                    setTimeout(finish, 600);
                 });
 
                 try {
@@ -1705,6 +1886,8 @@
             }
 
             updateMirrorStyle();
+            updateCameraControlsUI();
+            updateFlashUI();
             applyLiveFilter(state.selectedFilter);
             if (elements.cameraNotice) elements.cameraNotice.style.display = 'none';
         } catch (err) {
@@ -1730,17 +1913,47 @@
     }
 
     function toggleMirror() {
+        if (state.facingMode === 'environment') {
+            showToast('ℹ️ Kamera belakang otomatis menampilkan orientasi normal (tidak dicermin).', 'info', 2000);
+            return;
+        }
         state.isMirrored = !state.isMirrored;
         updateMirrorStyle();
-        showToast(state.isMirrored ? '🪞 Tampilan Cermin: Aktif' : '🪞 Tampilan Cermin: Normal', 'info', 1500);
+        updateCameraControlsUI();
+        showToast(state.isMirrored ? '🪞 Tampilan Cermin: Aktif (Selfie)' : '🪞 Tampilan Cermin: Nonaktif (Asli)', 'info', 1500);
     }
 
     function updateMirrorStyle() {
         if (!elements.video) return;
-        if (state.isMirrored) {
+        // Hanya cerminkan jika kamera depan (user) dan mode cermin aktif
+        if (state.facingMode === 'user' && state.isMirrored) {
             elements.video.style.transform = 'scaleX(-1)';
         } else {
             elements.video.style.transform = 'scaleX(1)';
+        }
+    }
+
+    function updateCameraControlsUI() {
+        const switchLabel = elements.switchCameraLabel || document.getElementById('switch-camera-label');
+        const switchBtn = elements.btnSwitchCamera || document.getElementById('btn-switch-camera');
+        const mirrorText = elements.mirrorBtnText || document.getElementById('mirror-btn-text');
+        const mirrorBtn = elements.btnToggleMirror || document.getElementById('btn-toggle-mirror');
+
+        if (switchLabel) {
+            // Tampilkan tombol tujuan: jika saat ini depan, tawarkan ganti ke Belakang
+            switchLabel.textContent = (state.facingMode === 'environment') ? 'Depan' : 'Belakang';
+        }
+        if (switchBtn) {
+            switchBtn.title = (state.facingMode === 'environment') 
+                ? 'Ganti ke Kamera Depan (Selfie)' 
+                : 'Ganti ke Kamera Belakang';
+        }
+
+        if (mirrorText) {
+            mirrorText.textContent = (state.facingMode === 'environment') ? 'Normal' : (state.isMirrored ? 'Cermin' : 'Asli');
+        }
+        if (mirrorBtn) {
+            mirrorBtn.classList.toggle('active', !!state.isMirrored && state.facingMode === 'user');
         }
     }
 
@@ -1751,19 +1964,12 @@
         try {
             await deactivateFlashIllumination();
             const nextMode = (state.facingMode === 'user') ? 'environment' : 'user';
-            state.facingMode = nextMode;
-            state.isMirrored = (nextMode === 'user');
 
-            showToast(nextMode === 'environment' ? '🔄 Menghubungkan ke Kamera Belakang...' : '🔄 Menghubungkan ke Kamera Depan...', 'info', 1600);
+            showToast(nextMode === 'environment' 
+                ? '🔄 Menghubungkan ke Kamera Belakang...' 
+                : '🔄 Menghubungkan ke Kamera Depan...', 'info', 1600);
 
             await startCamera(nextMode);
-            updateFlashUI();
-
-            if (state.facingMode === 'environment') {
-                showToast('📷 Kamera Belakang Aktif' + (state.flashEnabled ? ' (Flash LED siap)' : ''), 'success', 2200);
-            } else {
-                showToast('🤳 Kamera Depan Aktif' + (state.flashEnabled ? ' (Flash Layar siap)' : ''), 'success', 2200);
-            }
         } finally {
             state.isSwitchingCamera = false;
         }
