@@ -1,0 +1,132 @@
+[
+  {
+    "id": "asset_frame_strip_3",
+    "name": "Classic Studio (3 Pose)",
+    "subtitle": "Strip Vertikal Life4Cuts",
+    "file": "assets/frames/frame_strip_3.png",
+    "url": "assets/frames/frame_strip_3.png",
+    "thumbUrl": "assets/frames/frame_strip_3.png",
+    "layout": "strip_3",
+    "layoutLabel": "3 Foto",
+    "category": "strip",
+    "naturalWidth": 840,
+    "naturalHeight": 2376,
+    "aspectRatio": 0.3535,
+    "renderMode": "overlay",
+    "hasAlphaHoles": true,
+    "isPublished": true,
+    "isAssetFrame": true,
+    "slots": [
+      {
+        "x": 93,
+        "y": 210,
+        "width": 654,
+        "height": 500,
+        "radius": 14
+      },
+      {
+        "x": 93,
+        "y": 745,
+        "width": 654,
+        "height": 500,
+        "radius": 14
+      },
+      {
+        "x": 93,
+        "y": 1280,
+        "width": 654,
+        "height": 500,
+        "radius": 14
+      }
+    ]
+  },
+  {
+    "id": "asset_frame_receipt_3",
+    "name": "Receipt Strip (3 Pose)",
+    "subtitle": "Strip Vertikal Gaya Struk Belanja",
+    "file": "assets/frames/receipt_3pose.png",
+    "url": "assets/frames/receipt_3pose.png",
+    "thumbUrl": "assets/frames/receipt_3pose.png",
+    "layout": "strip_3",
+    "layoutLabel": "3 Foto",
+    "category": "strip",
+    "naturalWidth": 534,
+    "naturalHeight": 1602,
+    "aspectRatio": 0.3333,
+    "renderMode": "overlay",
+    "hasAlphaHoles": true,
+    "isPublished": true,
+    "isAssetFrame": true,
+    "slots": [
+      {
+        "x": 57,
+        "y": 215,
+        "width": 420,
+        "height": 350,
+        "radius": 8
+      },
+      {
+        "x": 57,
+        "y": 605,
+        "width": 420,
+        "height": 350,
+        "radius": 8
+      },
+      {
+        "x": 57,
+        "y": 995,
+        "width": 420,
+        "height": 350,
+        "radius": 8
+      }
+    ]
+  },
+  {
+    "id": "asset_frame_borcelle_4",
+    "name": "Borcelle Studio Grid (4 Pose)",
+    "subtitle": "Grid Majalah Estetik 4 Foto",
+    "file": "assets/frames/borcelle_4pose.png",
+    "url": "assets/frames/borcelle_4pose.png",
+    "thumbUrl": "assets/frames/borcelle_4pose.png",
+    "layout": "grid_4",
+    "layoutLabel": "4 Foto",
+    "category": "grid",
+    "naturalWidth": 1200,
+    "naturalHeight": 1800,
+    "aspectRatio": 0.6667,
+    "renderMode": "overlay",
+    "hasAlphaHoles": true,
+    "isPublished": true,
+    "isAssetFrame": true,
+    "slots": [
+      {
+        "x": 622,
+        "y": 56,
+        "width": 527,
+        "height": 403,
+        "radius": 0
+      },
+      {
+        "x": 56,
+        "y": 358,
+        "width": 506,
+        "height": 328,
+        "radius": 0
+      },
+      {
+        "x": 33,
+        "y": 757,
+        "width": 544,
+        "height": 418,
+        "radius": 0
+      },
+      {
+        "x": 605,
+        "y": 1202,
+        "width": 554,
+        "height": 475,
+        "radius": 0
+      }
+    ]
+  }
+]

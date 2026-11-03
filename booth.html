@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PhotoArt - Bilik Foto & Galeri Pribadi</title>
+    <meta name="description" content="PhotoArt Studio - Web Photo Booth modern berkualitas studio. Berfoto langsung dari ponsel pribadi!">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+</head>
+<body>
+
+    <!-- Ambient Studio Background Photo Layers for Booth -->
+    <div class="ambient-bg-gallery" aria-hidden="true">
+        <div class="ambient-photo photo-corner-tr">
+            <img src="assets/frames/thumb_frame_strip_3.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-mid-left">
+            <img src="assets/mini_polaroid_1.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-bot-right">
+            <img src="assets/frames/thumb_receipt_3pose.png" alt="" loading="lazy">
+        </div>
+    </div>
+
+    <!-- Studio Header & Branding -->
+    <header class="app-header">
+        <div class="header-container">
+            <a href="index.html" class="logo-brand" id="brand-home-link" title="← Kembali ke Beranda PhotoART">
+                <div class="logo-mark luxury-camera-mark">
+                    <svg class="luxury-camera-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#fbbf24" />
+                                <stop offset="50%" stop-color="#f59e0b" />
+                                <stop offset="100%" stop-color="#d97706" />
+                            </linearGradient>
+                            <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1e222d" />
+                                <stop offset="100%" stop-color="#0b0e14" />
+                            </linearGradient>
+                            <radialGradient id="lensReflect" cx="35%" cy="35%" r="65%">
+                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95" />
+                                <stop offset="50%" stop-color="#1d4ed8" stop-opacity="0.85" />
+                                <stop offset="100%" stop-color="#030712" />
+                            </radialGradient>
+                        </defs>
+                        <!-- Luxury Camera Body Frame -->
+                        <rect x="4" y="10" width="32" height="23" rx="5" fill="url(#bodyGradient)" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <!-- Upper Rangefinder & Shutter Dial -->
+                        <path d="M13 10V7.5C13 6.67 13.67 6 14.5 6H19.5C20.33 6 21 6.67 21 7.5V10" fill="#181c26" stroke="url(#goldGradient)" stroke-width="1.2" />
+                        <circle cx="28.5" cy="7" r="1.8" fill="url(#goldGradient)" />
+                        <!-- Red Leica-style Indicator Dot -->
+                        <circle cx="9.5" cy="15" r="1.5" fill="#ef4444" />
+                        <!-- Outer Golden Lens Rim -->
+                        <circle cx="20" cy="21.5" r="8.5" fill="#080b11" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <!-- Precision Lens Optical Ring -->
+                        <circle cx="20" cy="21.5" r="6.8" stroke="rgba(255,255,255,0.25)" stroke-width="0.8" />
+                        <!-- Sapphire Coated Optical Lens Element -->
+                        <circle cx="20" cy="21.5" r="5.2" fill="url(#lensReflect)" />
+                        <!-- Crystal Glint Reflection -->
+                        <circle cx="18.2" cy="19.7" r="1.2" fill="#ffffff" opacity="0.95" />
+                        <!-- Top-Right Sparkle Accent -->
+                        <path d="M30 14.5L31.5 13M31.5 13L33 14.5M31.5 13V15.5" stroke="url(#goldGradient)" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="logo-text-group">
+                    <div class="logo-title-row">
+                        <span class="logo-title-main">PhotoART</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- User Quick Nav: Bilik Foto | Operator | Galeri Saya -->
+            <nav class="user-header-nav">
+                <button type="button" class="user-nav-btn active" id="btn-nav-booth" data-nav-target="setup" title="Bilik Pemotretan">
+                    <span></span> <span>Bilik Foto</span>
+                </button>
+                <a href="admin.html" class="user-nav-btn" id="btn-nav-admin" title="Panel Operator (Admin)">
+                    <span></span> <span>Operator</span>
+                </a>
+                <button type="button" class="user-nav-btn" id="btn-nav-gallery" data-nav-target="gallery" title="Galeri Foto Privat Saya">
+                    <span></span> <span>Galeri</span>
+                    <span class="nav-badge" id="header-gallery-badge" style="display: none;">0</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Studio Step Tracker (01 PILIH ➔ 02 FOTO ➔ 03 CETAK ➔ 04 GALERI) -->
+    <div class="step-tracker-wrapper">
+        <nav class="studio-step-tracker" id="studio-step-tracker">
+            <div class="step-track-item active" data-step-target="setup">
+                <span class="step-icon"></span>
+                <span class="step-num">01</span>
+                <span class="step-label">Bingkai</span>
+            </div>
+            <div class="step-track-arrow">›</div>
+            <div class="step-track-item" data-step-target="camera">
+                <span class="step-num">02</span>
+                <span class="step-label">Foto Pose</span>
+            </div>
+            <div class="step-track-arrow">›</div>
+            <div class="step-track-item" data-step-target="editor">
+                <span class="step-num">03</span>
+                <span class="step-label">Hias & Cetak</span>
+            </div>
+            <div class="step-track-arrow">›</div>
+            <div class="step-track-item" data-step-target="gallery">
+                <span class="step-num">04</span>
+                <span class="step-label">Galeri</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Studio Application Flow -->
+    <main class="app-main">
+
+        <!-- ================= STEP 1: SETUP & FRAME SELECTION ================= -->
+        <section id="step-setup" class="step-view active">
+            
+            <!-- Hero Header for Booth Setup -->
+            <div class="hero-banner">
+                <div class="hero-decor-rings" aria-hidden="true"></div>
+                
+                <!-- Decorative Layered Photo Strips in Booth Banner -->
+                <div class="booth-banner-collage" aria-hidden="true">
+                    <img class="booth-banner-strip strip-left" src="assets/frames/thumb_frame_strip_3.png" alt="">
+                    <img class="booth-banner-strip strip-center" src="assets/mini_polaroid_1.png" alt="">
+                    <img class="booth-banner-strip strip-right" src="assets/frames/thumb_receipt_3pose.png" alt="">
+                </div>
+                
+                <h1 class="hero-title">Pilih Bingkai & Mulai Berfoto</h1>
+                <p class="hero-desc">Pilih bingkai photobooth favoritmu yang telah disiapkan oleh Admin, atur timer pose, dan abadikan foto berkualitas studio langsung dari ponsel.</p>
+                
+                <div class="hero-features-strip">
+                    <span class="hero-feat-item"><span class="feat-icon"></span> Bingkai / Frame</span>
+                    <span class="hero-feat-dot">•</span>
+                    <span class="hero-feat-item"><span class="feat-icon"></span> Filter Foto</span>
+                    <span class="hero-feat-dot">•</span>    
+                    <span class="hero-feat-item"><span class="feat-icon"></span> Galeri</span>
+                </div>
+            </div>
+
+            <!-- Frame Selection Card -->
+            <div class="card">
+                <div class="card-header-flex">
+                    <div>
+                        <h2 class="card-title">
+                            <span></span> 1. Pilih Desain Bingkai (Frame)
+                        </h2>
+                        <p class="card-subtitle">Pilih bingkai photobooth yang telah disediakan oleh Admin untuk memulai sesi foto Anda:</p>
+                    </div>
+                </div>
+
+                <div id="frames-selection-grid" class="frames-selection-grid">
+                    <!-- Populated dynamically via js/app.js with ready-to-use frames from Admin -->
+                </div>
+
+                <!-- Timer Options Box -->
+                <h2 class="card-title" style="margin-top: 14px;">
+                    <span></span> 2. Atur Waktu Pose (Timer)
+                </h2>
+                <p class="card-subtitle">Pilih durasi hitung mundur otomatis untuk berganti pose di setiap foto:</p>
+
+                <div class="timer-options">
+                    <button type="button" class="timer-chip selected" data-timer="3">
+                        <span style="font-size: 15px; font-weight: 800;">3 Detik</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Standar Booth</span>
+                    </button>
+                    <button type="button" class="timer-chip" data-timer="5">
+                        <span style="font-size: 15px; font-weight: 800;">5 Detik</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Pose Santai</span>
+                    </button>
+                    <button type="button" class="timer-chip" data-timer="0">
+                        <span style="font-size: 15px; font-weight: 800;">Manual</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Klik Sendiri</span>
+                    </button>
+                </div>
+
+                <!-- Flash Quick Setting in Setup -->
+                <div class="setup-quick-settings" style="margin-top: 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.75); border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">⚡</span>
+                        <div>
+                            <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">Mode Flash Kamera</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">Flash layar terang (depan/selfie) & lampu LED (belakang)</div>
+                        </div>
+                    </div>
+                    <button id="btn-setup-toggle-flash" type="button" class="flash-setup-toggle-btn" aria-label="Aktifkan / Matikan Flash Kamera">
+                        <span id="setup-flash-status-text">OFF</span>
+                    </button>
+                </div>
+
+                <!-- Start Booth CTA -->
+                <button id="btn-start-booth" class="btn-primary" type="button" style="padding: 16px;">
+                    <span>Masuk ke Ruang Foto</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= STEP 2: CAMERA CAPTURE WITH LIVE FILTERS ================= -->
+        <section id="step-camera" class="step-view">
+            <div class="card camera-card">
+                
+                <!-- Frame Indicator Badge Bar -->
+                <div class="camera-frame-badge-bar">
+                    <span id="camera-current-frame-badge" class="frame-indicator-badge">
+                        Bingkai: <strong>PhotoArt Frame</strong>
+                    </span>
+                    <span id="shot-counter-text" class="shot-counter-badge">Foto 1 dari 3</span>
+                </div>
+
+                <!-- Viewfinder Studio Container -->
+                <div id="camera-feed-container" class="camera-feed-container">
+                    <video id="camera-video" class="camera-video" autoplay playsinline webkit-playsinline muted></video>
+
+                    <!-- Studio Camera Viewfinder HUD Elements -->
+                    <div class="viewfinder-grid-overlay" aria-hidden="true">
+                        <div class="vf-grid-h vf-grid-h1"></div>
+                        <div class="vf-grid-h vf-grid-h2"></div>
+                        <div class="vf-grid-v vf-grid-v1"></div>
+                        <div class="vf-grid-v vf-grid-v2"></div>
+                    </div>
+
+                    <!-- Viewfinder Focus Reticle -->
+                    <div class="viewfinder-focus-box" aria-hidden="true">
+                        <span class="vf-bracket-l">[</span>
+                        <span class="vf-crosshair">+</span>
+                        <span class="vf-bracket-r">]</span>
+                    </div>
+
+                    <!-- Viewfinder Camera HUD Telemetry -->
+                    <div class="viewfinder-hud-top" aria-hidden="true">
+                        <span class="hud-live-tag"><span class="live-blink-dot"></span> LIVE REC</span>
+                        <span class="hud-format-tag">4K BEAUTY RAW &bull; 60FPS</span>
+                    </div>
+
+                    <div class="viewfinder-hud-bottom" aria-hidden="true">
+                        <span class="hud-meter-item">ISO 400</span>
+                        <span class="hud-meter-divider">/</span>
+                        <span class="hud-meter-item">1/125s</span>
+                        <span class="hud-meter-divider">/</span>
+                        <span class="hud-meter-item">ƒ/1.8</span>
+                        <span class="hud-meter-divider">/</span>
+                        <span id="hud-flash-indicator" class="hud-meter-item hud-flash-indicator">⚡ FLASH OFF</span>
+                    </div>
+
+                    <!-- Utility Overlays -->
+                    <div id="screen-flash-illuminator" class="screen-flash-illuminator" aria-hidden="true"></div>
+                    <div id="flash-overlay" class="flash-overlay"></div>
+                    <div id="countdown-overlay" class="countdown-overlay">
+                        <span id="countdown-number" class="countdown-number">3</span>
+                    </div>
+
+                    <!-- Top Bar Camera Controls -->
+                    <div class="camera-top-bar">
+                        <button id="btn-toggle-flash" class="camera-icon-btn btn-flash" type="button" title="Mode Flash Kamera (Depan & Belakang)" aria-label="Aktifkan / Matikan Flash Kamera">
+                            <span class="flash-icon">⚡</span> <span id="flash-btn-text">Flash OFF</span>
+                        </button>
+                        <button id="btn-toggle-mirror" class="camera-icon-btn" type="button" title="Cerminkan Kamera">
+                            Cermin
+                        </button>
+                        <button id="btn-switch-camera" class="camera-icon-btn" type="button" title="Ganti Kamera Depan / Belakang">
+                            Balik
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LIVE FILTER SELECTION BAR IN CAPTURE SCREEN -->
+                <div class="capture-filter-section">
+                    <div class="capture-filter-header">
+                        <span class="capture-filter-title">Pilih Filter Estetik Wajah (Live Preview):</span>
+                        <span id="active-filter-name" class="active-filter-badge">Normal</span>
+                    </div>
+                    <div id="camera-filters-container" class="chips-scroller camera-filters-scroller">
+                        <!-- Populated dynamically via js/app.js with realistic photo icons -->
+                    </div>
+                </div>
+
+                <!-- HTTP Local Notice if Camera Blocked -->
+                <div id="camera-notice" class="camera-notice">
+                    <strong>Tips Akses Kamera:</strong> Jika video kamera langsung tidak muncul karena batasan browser lokal (HTTP), tekan tombol <strong>"Buka Kamera HP Langsung"</strong> di bawah ini untuk berfoto via kamera bawaan HP!
+                </div>
+
+                <!-- Shot Tracker & Filmstrip Reel -->
+                <div class="shot-tracker">
+                    <div class="shot-counter-header">
+                        <span style="font-weight: 800; font-size: 12px; color: var(--text-pure); text-transform: uppercase; letter-spacing: 0.05em;">🎞️ Film Roll (Hasil Pose):</span>
+                        <span style="color: var(--text-muted); font-size: 11px;">Ketuk × untuk hapus pose</span>
+                    </div>
+                    <div id="shot-thumbs-container" class="shot-thumbs-container">
+                        <!-- Dynamic thumbs injected here -->
+                    </div>
+                </div>
+
+                <!-- Shutter Trigger Controls -->
+                <div class="camera-controls">
+                    <div class="shutter-btn-wrapper">
+                        <button id="btn-capture" class="btn-shutter" type="button" title="Ambil Foto"></button>
+                    </div>
+
+                    <div class="native-capture-row" style="width: 100%; display: flex; justify-content: center;">
+                        <button id="btn-native-capture" class="btn-native-file" type="button">
+                            Buka Kamera HP Langsung / Galeri
+                        </button>
+                        <!-- Hidden native file input with camera capture attribute (supports multiple) -->
+                        <input id="native-file-input" type="file" accept="image/*" multiple style="display: none;">
+                    </div>
+
+                    <button id="btn-proceed-to-editor" class="btn-primary" type="button" style="display: none; margin-top: 6px;">
+                        <span>Lanjut ke Cetak & Hias</span>
+                        <span></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STEP 3: EDITOR (PREVIEW, CUSTOM TEXT & STICKERS) ================= -->
+        <section id="step-editor" class="step-view">
+            <div class="editor-grid">
+                
+                <!-- Preview Canvas Column (Studio Easel Stand) -->
+                <div class="canvas-preview-wrapper">
+                    <div class="easel-clamp-bar" aria-hidden="true">
+                        <span class="easel-screw">•</span>
+                        <span class="easel-mount-tag">PHOTOART STUDIO PRO</span>
+                        <span class="easel-screw">•</span>
+                    </div>
+                    <canvas id="canvas-preview"></canvas>
+                    <div class="easel-signature-plate" aria-hidden="true">
+                        <span class="plate-brand">PHOTOART STUDIO</span>
+                        <span class="plate-spec">HIGH DEFINITION PRINT &bull; AUTONOMOUS LAB</span>
+                    </div>
+                </div>
+
+                <!-- Controls Column (Studio Toolbox) -->
+                <div class="editor-controls">
+                    
+                    <!-- Change Frame Theme -->
+                    <div class="card">
+                        <h2 class="card-title">
+                            <span></span> Desain Bingkai & Teks
+                        </h2>
+                        <p class="card-subtitle">Ubah bingkai atau tambahkan teks kenangan pada foto:</p>
+                        
+                        <div id="themes-container" class="chips-scroller">
+                            <!-- Populated dynamically via js/app.js -->
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 16px 0;">
+
+                        <!-- Custom Text on Frame -->
+                        <div class="form-group">
+                            <label class="form-label" for="input-header">Judul / Teks Atas Bingkai</label>
+                            <input id="input-header" class="form-input" type="text" placeholder="Contoh: PARTNER IN CRIME" maxlength="32">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="input-subtitle">Catatan / Tanggal Bawah Bingkai</label>
+                            <input id="input-subtitle" class="form-input" type="text" placeholder="Contoh: PHOTOART STUDIO • 2026" maxlength="38">
+                        </div>
+                    </div>
+
+                    <!-- Change Filter (Post-capture) -->
+                    <div class="card">
+                        <h2 class="card-title">
+                            <span></span> Filter Warna Foto
+                        </h2>
+                        <p class="card-subtitle">Ubah nuansa warna seluruh foto dengan filter estetik:</p>
+                        <div id="editor-filters-container" class="chips-scroller">
+                            <!-- Populated dynamically via js/app.js with realistic photo icons -->
+                        </div>
+                    </div>
+
+                    <!-- Stickers Section -->
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <h2 class="card-title" style="margin-bottom: 0;">
+                                <span></span> Tambah Stiker & Aksesoris Foto
+                            </h2>
+                            <button id="btn-clear-stickers" type="button" style="background: none; border: none; color: #f87171; font-size: 11px; font-weight: 700; cursor: pointer;">
+                                Hapus Semua
+                            </button>
+                        </div>
+                        <p class="card-subtitle">Ketuk stiker untuk menambahkan dekorasi pada foto:</p>
+                        
+                        <div id="stickers-container" class="stickers-palette">
+                            <!-- Populated dynamically via js/app.js -->
+                        </div>
+
+                        <!-- Interactive Sticker Position & Size Controller -->
+                        <div id="sticker-controller-panel" class="sticker-controller-panel" style="display: none;">
+                            <div class="sticker-controller-header">
+                                <span style="font-weight: 700; color: #fb7185; font-size: 12px;">🎯 Atur Posisi & Ukuran:</span>
+                                <button id="btn-delete-selected-sticker" type="button" class="btn-delete-active-sticker" title="Hapus Stiker Ini">🗑️ Hapus</button>
+                            </div>
+
+                            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                                <em>Sentuh langsung stikernya di foto untuk geser bebas, atau gunakan tombol cepat di bawah:</em>
+                            </p>
+
+                            <!-- Quick Placement Buttons -->
+                            <div class="sticker-preset-buttons">
+                                <button type="button" class="sticker-pos-btn" data-pos="top-left">↖️ Kiri Atas</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="top-right">↗️ Kanan Atas</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="center">⏺️ Tengah</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="bottom-left">↙️ Kiri Bawah</button>
+                                <button type="button" class="sticker-pos-btn" data-pos="bottom-right">↘️ Kanan Bawah</button>
+                            </div>
+
+                            <!-- Fine-tuning D-Pad & Size -->
+                            <div class="sticker-finetune-row">
+                                <div class="sticker-dpad">
+                                    <button type="button" class="sticker-dpad-btn" data-move="up">⬆️</button>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button type="button" class="sticker-dpad-btn" data-move="left">⬅️</button>
+                                        <button type="button" class="sticker-dpad-btn" data-move="down">⬇️</button>
+                                        <button type="button" class="sticker-dpad-btn" data-move="right">➡️</button>
+                                    </div>
+                                </div>
+                                <div class="sticker-size-controls">
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-bigger">➕ Lebih Besar</button>
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-smaller">➖ Lebih Kecil</button>
+                                    <button type="button" class="btn-size-sticker" id="btn-sticker-rotate">🔄 Putar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final Actions -->
+                    <div class="card" style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="btn-save-to-gallery" class="btn-primary" type="button" style="padding: 16px;">
+                            <span>Simpan ke Galeri Dashboard</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btn-download-direct" class="btn-secondary" style="flex: 1;" type="button">
+                                <span>Unduh ke HP</span>
+                            </button>
+                            <button id="btn-share-final" class="btn-secondary" style="flex: 1;" type="button">
+                                <span>Bagikan</span>
+                            </button>
+                            <button id="btn-print-final" class="btn-secondary" style="flex: 1;" type="button">
+                                <span>Cetak Foto</span>
+                            </button>
+                        </div>
+
+                        <button id="btn-view-in-gallery" class="btn-secondary" type="button" style="border-color: #bae6fd; color: #0284c7;">
+                            <span>Buka Dashboard Galeri Foto</span>
+                        </button>
+
+                        <button id="btn-retake-all" class="btn-secondary" style="margin-top: 4px; border-color: #fecaca; color: #dc2626;" type="button">
+                            <span>Foto Ulang (Sesi Baru)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STEP 4: USER GALLERY DASHBOARD ================= -->
+        <section id="step-gallery" class="step-view">
+            <div class="dashboard-hero">
+                <div class="hero-decor-rings" aria-hidden="true"></div>
+                <div class="film-sprockets-strip" aria-hidden="true"></div>
+
+                <div class="hero-pill-badge">
+                    <span></span> GALERI PRIBADI PERANGKAT ANDA <span></span>
+                </div>
+                <h1 class="hero-title">Galeri Foto Saya</h1>
+                <p class="hero-desc">Semua foto yang Anda abadikan dari HP ini tersimpan privat di sini. Pengunjung lain tidak dapat melihat foto Anda, dan hanya admin booth yang memiliki akses sentral.</p>
+                
+                <div class="dashboard-hero-actions">
+                    <button type="button" class="btn-primary" id="btn-gallery-new-session" style="width: auto; padding: 11px 22px;">
+                        <span>Mulai Sesi Foto Baru</span>
+                    </button>
+                    <button type="button" class="btn-secondary" id="btn-gallery-refresh" style="width: auto; padding: 11px 18px;">
+                        <span>Segarkan Galeri</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Gallery Grid Container -->
+            <div class="card" style="padding: 16px;">
+                <div class="gallery-header-row">
+                    <h2 class="card-title" style="margin-bottom: 0;">
+                        <span></span> Foto Tersimpan di HP Ini (<span id="user-gallery-count">0</span>)
+                    </h2>
+                    <div class="gallery-notice-pill">
+                        Privat Khusus HP Ini
+                    </div>
+                </div>
+                <p class="card-subtitle" style="margin-top: 5px;">
+                    Ketuk foto untuk melihat resolusi penuh atau tekan tombol Unduh untuk menyimpan langsung ke galeri ponsel Anda.
+                </p>
+
+                <!-- Dynamic User Gallery Grid -->
+                <div id="user-gallery-grid" class="user-gallery-grid">
+                    <!-- Injected dynamically via js/app.js -->
+                </div>
+
+                <!-- Empty State (Shown if no photos) -->
+                <div id="user-gallery-empty" class="dashboard-empty-state" style="display: none;">
+                    <div class="empty-icon"></div>
+                    <h3>Belum Ada Foto di Perangkat Ini</h3>
+                    <p>Ambil foto pertamamu di booth dan hasilnya akan langsung muncul di galeri pribadimu!</p>
+                    <button type="button" class="btn-primary" id="btn-empty-start-booth" style="width: auto; margin-top: 14px; padding: 11px 22px;">
+                        Mulai Berfoto Sekarang ➔
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODAL: LIGHTBOX FULL RESOLUTION VIEWER ================= -->
+    <div id="modal-lightbox" class="modal-backdrop">
+        <div class="lightbox-container">
+            <button id="btn-close-lightbox" class="btn-lightbox-close" type="button" title="Tutup">&times;</button>
+            <div class="lightbox-img-wrapper">
+                <img id="lightbox-img" src="" alt="Foto Resolusi Penuh">
+            </div>
+            <div class="lightbox-caption-bar">
+                <span id="lightbox-caption">Foto Photobooth</span>
+                <button id="btn-lightbox-download" class="btn-primary" style="padding: 8px 16px; font-size: 12px;" type="button">
+                    Unduh HD
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: SHARE BARCODE / QR CODE (STUDIO PASS) ================= -->
+    <div id="modal-barcode" class="modal-backdrop">
+        <div class="modal-card ticket-pass-card">
+            <!-- Ticket tear-off notch cutouts -->
+            <div class="ticket-notch ticket-notch-left" aria-hidden="true"></div>
+            <div class="ticket-notch ticket-notch-right" aria-hidden="true"></div>
+
+            <div class="modal-header">
+                <div>
+                    <span class="ticket-pass-badge">OFFICIAL VIP ACCESS PASS</span>
+                    <h3 class="modal-title" style="margin-top: 4px;">PhotoArt Studio Pass</h3>
+                </div>
+                <button id="btn-close-barcode" class="btn-modal-close" type="button">&times;</button>
+            </div>
+
+            <div class="qr-code-wrapper">
+                <span class="qr-crop-tick qr-tick-tl" aria-hidden="true">⌜</span>
+                <span class="qr-crop-tick qr-tick-tr" aria-hidden="true">⌝</span>
+                <span class="qr-crop-tick qr-tick-bl" aria-hidden="true">⌞</span>
+                <span class="qr-crop-tick qr-tick-br" aria-hidden="true">⌟</span>
+                <div id="qr-code-container"></div>
+            </div>
+
+            <div class="ticket-perforated-line" aria-hidden="true"></div>
+
+            <div class="copy-feedback-toast" id="copy-feedback">
+                ✓ Link berhasil disalin ke clipboard!
+            </div>
+
+            <label for="input-share-url" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em;">Link URL Photo Booth (Bisa disesuaikan):</label>
+            <div class="url-input-group">
+                <input id="input-share-url" type="text" placeholder="http://192.168.1.x:8000" title="URL Photo Booth">
+                <button id="btn-copy-link" class="btn-secondary" type="button" style="padding: 8px 14px;">Salin</button>
+            </div>
+
+            <div class="qr-instructions">
+                <strong>Cara Penggunaan:</strong>
+                <ol>
+                    <li>Tampilkan barcode ini di layar tablet atau cetak di meja stand photobooth.</li>
+                    <li>Pengunjung cukup membuka kamera ponsel pribadi lalu scan barcode di atas.</li>
+                    <li>Halaman PhotoArt langsung terbuka otomatis di browser ponsel pengunjung!</li>
+                </ol>
+            </div>
+
+            <div class="qr-modal-actions">
+                <button id="btn-download-qr" class="btn-primary" type="button" style="padding: 12px;">
+                    <span>Unduh Gambar Barcode</span>
+                </button>
+            </div>
+
+            <!-- Decorative Studio Barcode Telemetry -->
+            <div class="ticket-telemetry-footer" aria-hidden="true">
+                <span class="barcode-graphic">||||| | ||| |||| | |||||| || | |||</span>
+                <span class="barcode-text">PHOTOART-35MM-STU-PASS-2026</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div id="photoart-toast" class="photoart-toast"></div>
+
+    <!-- Studio Footer -->
+    <footer class="app-footer">
+        <p>PHOTOART PHOTO BOOTH STUDIO &bull; CAPTURE YOUR BEST MOMENTS</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/qrcode.min.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/frames.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+

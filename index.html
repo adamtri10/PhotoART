@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PhotoArt - Professional Self Photo Booth Studio</title>
+    <meta name="description" content="PhotoArt Studio - Web Photo Booth modern berkualitas studio. Cukup scan barcode untuk berfoto langsung dari ponsel pribadi!">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+</head>
+<body class="view-mode-home">
+
+    <!-- Ambient Studio Background Photo Layers (Subtle Mixed Scattered Layers) -->
+    <div class="ambient-bg-gallery" aria-hidden="true">
+        <div class="ambient-photo photo-corner-tr">
+            <img src="assets/frames/thumb_frame_strip_3.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-mid-left">
+            <img src="assets/mini_polaroid_1.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-mid-right">
+            <img src="assets/mini_polaroid_2.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-bot-left">
+            <img src="assets/frames/thumb_receipt_3pose.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-bot-right">
+            <img src="assets/frames/thumb_borcelle_4pose.png" alt="" loading="lazy">
+        </div>
+    </div>
+
+    <!-- Studio Header & Branding -->
+    <header class="app-header">
+        <div class="header-container">
+            <a href="index.html" class="logo-brand" id="brand-home-link" title="Beranda PhotoART">
+                <div class="logo-mark luxury-camera-mark">
+                    <svg class="luxury-camera-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#fbbf24" />
+                                <stop offset="50%" stop-color="#f59e0b" />
+                                <stop offset="100%" stop-color="#d97706" />
+                            </linearGradient>
+                            <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1e222d" />
+                                <stop offset="100%" stop-color="#0b0e14" />
+                            </linearGradient>
+                            <radialGradient id="lensReflect" cx="35%" cy="35%" r="65%">
+                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95" />
+                                <stop offset="50%" stop-color="#1d4ed8" stop-opacity="0.85" />
+                                <stop offset="100%" stop-color="#030712" />
+                            </radialGradient>
+                        </defs>
+                        <!-- Luxury Camera Body Frame -->
+                        <rect x="4" y="10" width="32" height="23" rx="5" fill="url(#bodyGradient)" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <!-- Upper Rangefinder & Shutter Dial -->
+                        <path d="M13 10V7.5C13 6.67 13.67 6 14.5 6H19.5C20.33 6 21 6.67 21 7.5V10" fill="#181c26" stroke="url(#goldGradient)" stroke-width="1.2" />
+                        <circle cx="28.5" cy="7" r="1.8" fill="url(#goldGradient)" />
+                        <!-- Red Leica-style Indicator Dot -->
+                        <circle cx="9.5" cy="15" r="1.5" fill="#ef4444" />
+                        <!-- Outer Golden Lens Rim -->
+                        <circle cx="20" cy="21.5" r="8.5" fill="#080b11" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <!-- Precision Lens Optical Ring -->
+                        <circle cx="20" cy="21.5" r="6.8" stroke="rgba(255,255,255,0.25)" stroke-width="0.8" />
+                        <!-- Sapphire Coated Optical Lens Element -->
+                        <circle cx="20" cy="21.5" r="5.2" fill="url(#lensReflect)" />
+                        <!-- Crystal Glint Reflection -->
+                        <circle cx="18.2" cy="19.7" r="1.2" fill="#ffffff" opacity="0.95" />
+                        <!-- Top-Right Sparkle Accent -->
+                        <path d="M30 14.5L31.5 13M31.5 13L33 14.5M31.5 13V15.5" stroke="url(#goldGradient)" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="logo-text-group">
+                    <div class="logo-title-row">
+                        <span class="logo-title-main">PhotoART</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Studio Application Flow -->
+    <main class="app-main">
+
+        <!-- ================= HOMEPAGE (PENGENALAN, FITUR, ALASAN PHOTOART) ================= -->
+        <section id="step-home" class="step-view active home-view">
+            <div class="home-container">
+                
+                <!-- HERO SECTION -->
+                <header class="home-hero-section home-anim-entry">
+                    <div class="home-badge-tag">
+                        <span class="badge-dot"></span>
+                        <span>STUDIO PHOTOBOOTH DIGITAL GENERASI BARU</span>
+                    </div>
+                    
+                    <h1 class="home-hero-title">
+                        Abadikan Setiap Momen dalam Format Strip Autentik
+                    </h1>
+                    
+                    <p class="home-hero-desc">
+                        PhotoART menghadirkan keseruan studio photobooth yang terintegrasi langsung ke browser gadget Anda. Tanpa instalasi aplikasi, tanpa antrean, dengan hasil cetak resolusi tinggi dan privasi penuh.
+                    </p>
+                    
+                    <div class="home-hero-cta-group">
+                        <a href="booth.html" class="btn-home-start" id="btn-hero-start">
+                            <span>Mulai Ambil Foto</span>
+                            <span class="btn-arrow">➔</span>
+                        </a>
+                        <a href="#home-about" class="btn-home-learn" id="btn-hero-scroll">
+                            <span>Pelajari PhotoART</span>
+                            <span>↓</span>
+                        </a>
+                    </div>
+
+                    <!-- Creative Studio Photo Collage Layer (Mix Tilted Aesthetic Showcase) -->
+                    <div class="home-hero-collage-wrapper">
+                        <div class="home-hero-collage" aria-label="Koleksi Desain Format Photobooth PhotoART">
+                            <!-- Layer 1: Classic Studio Strip 3 Pose (Tilted Left) -->
+                            <div class="collage-item item-strip" title="Classic Studio Strip 3 Pose">
+                                <img src="assets/frames/thumb_frame_strip_3.png" alt="Classic Studio Strip 3 Pose" loading="lazy">
+                                <span class="collage-badge">Life4Cuts Strip</span>
+                            </div>
+
+                            <!-- Layer 2: Receipt Strip (Center Front Tilted Right) -->
+                            <div class="collage-item item-receipt" title="Receipt Strip 3 Pose">
+                                <img src="assets/frames/thumb_receipt_3pose.png" alt="Receipt Strip 3 Pose" loading="lazy">
+                                <span class="collage-badge">Trending Receipt</span>
+                            </div>
+
+                            <!-- Layer 3: Borcelle Editorial Magazine 4 Pose (Tilted Right) -->
+                            <div class="collage-item item-borcelle" title="Borcelle Studio Grid 4 Pose">
+                                <img src="assets/frames/thumb_borcelle_4pose.png" alt="Borcelle Studio Grid 4 Pose" loading="lazy">
+                                <span class="collage-badge">Magazine Grid</span>
+                            </div>
+
+                            <!-- Layer 4: Polaroid 1 with Washi Tape (Floating Accent Left) -->
+                            <div class="collage-item item-polaroid-1" title="Instant Photo Snapshot">
+                                <img src="assets/mini_polaroid_1.png" alt="Instant Photo Snapshot" loading="lazy">
+                            </div>
+
+                            <!-- Layer 5: Polaroid 2 with Pastel Tape (Floating Accent Right) -->
+                            <div class="collage-item item-polaroid-2" title="Besties Studio Snapshot">
+                                <img src="assets/mini_polaroid_2.png" alt="Besties Studio Snapshot" loading="lazy">
+                            </div>
+                        </div>
+                        <div class="collage-caption">
+                            <span>📸</span>
+                            <span>Format Bingkai Autentik &bull; Sentuh atau Arahkan Kursor untuk Pratinjau Interaktif</span>
+                        </div>
+                    </div>
+
+                    <!-- Sleek Feature Strip (Minimalist Linear Metrics, Not Boxed Cards) -->
+                    <div class="home-quick-metrics">
+                        <div class="metric-item">
+                            <span class="metric-val">100%</span>
+                            <span class="metric-label">Berbasis Web (Tanpa Install)</span>
+                        </div>
+                        <div class="metric-divider"></div>
+                        <div class="metric-item">
+                            <span class="metric-val">Multi-Pose</span>
+                            <span class="metric-label">Format Strip & Grid Presisi</span>
+                        </div>
+                        <div class="metric-divider"></div>
+                        <div class="metric-item">
+                            <span class="metric-val">4K RAW</span>
+                            <span class="metric-label">Kualitas Cetak Studio HD</span>
+                        </div>
+                        <div class="metric-divider"></div>
+                        <div class="metric-item">
+                            <span class="metric-val">100% Privat</span>
+                            <span class="metric-label">Tersimpan di Gadget Anda</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- SUB 1: APA ITU PHOTOART? -->
+                <section id="home-about" class="home-sub-section home-reveal" data-reveal>
+                    <div class="home-sub-header">
+                        <span class="home-sub-num">01</span>
+                        <span class="home-sub-badge">PENGENALAN</span>
+                        <h2 class="home-sub-title">Apa itu PhotoART?</h2>
+                        <div class="home-title-line"></div>
+                    </div>
+
+                    <div class="home-narrative-block">
+                        <p class="home-lead-text">
+                            <strong>PhotoART</strong> adalah platform studio foto mandiri (<em>self-photo booth</em>) berbasis teknologi web modern yang dirancang khusus untuk memberikan pengalaman pemotretan interaktif langsung dari perangkat ponsel pintar, tablet, maupun desktop Anda.
+                        </p>
+                        <p class="home-body-text">
+                            Terinspirasi oleh tren photobooth strip Korea seperti <em>Life4Cuts</em> yang digemari di berbagai belahan dunia, PhotoART menghilangkan hambatan fisik mesin studio tradisional. Kami menghadirkan bilik foto digital yang lengkap—mulai dari kamera cerdas berpenghitung mundur, pengisian grid foto presisi di bawah lapisan bingkai artistik, filter estetis langsung, hingga personalisasi stiker dan teks—semuanya berjalan mulus langsung di peramban web (<em>browser</em>) tanpa perlu mengunduh aplikasi tambahan apapun.
+                        </p>
+                    </div>
+
+                    <div class="home-pillars-grid">
+                        <div class="home-pillar-item home-sub-item">
+                            <div class="pillar-marker">01.1</div>
+                            <h3 class="pillar-title">Studio Mandiri Tanpa Aplikasi</h3>
+                            <p class="pillar-desc">Cukup buka tautan web di ponsel Anda. Anda dapat langsung memilih bingkai dan berpose secara mandiri dengan timer pose otomatis.</p>
+                        </div>
+                        <div class="home-pillar-item home-sub-item">
+                            <div class="pillar-marker">01.2</div>
+                            <h3 class="pillar-title">Desain Vertikal Ramah Gadget</h3>
+                            <p class="pillar-desc">Dioptimalkan khusus untuk layar sentuh ponsel, sehingga tata letak selalu proporsional, rapi, dan mudah dioperasikan.</p>
+                        </div>
+                        <div class="home-pillar-item home-sub-item">
+                            <div class="pillar-marker">01.3</div>
+                            <h3 class="pillar-title">Privasi Terjaga Sepenuhnya</h3>
+                            <p class="pillar-desc">Foto disimpan khusus di galeri perangkat Anda sendiri. Pengunjung lain tidak dapat melihat atau mengakses foto pribadi Anda.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SUB 2: APA YANG ADA DI PHOTOART? -->
+                <section id="home-features" class="home-sub-section home-reveal" data-reveal>
+                    <div class="home-sub-header">
+                        <span class="home-sub-num">02</span>
+                        <span class="home-sub-badge">FITUR & KEMAMPUAN</span>
+                        <h2 class="home-sub-title">Apa yang Ada di PhotoART?</h2>
+                        <div class="home-title-line"></div>
+                    </div>
+
+                    <p class="home-section-lead">
+                        PhotoART menggabungkan teknologi kamera modern dengan estetika desain grafis beresolusi tinggi untuk menghasilkan kenangan foto terbaik:
+                    </p>
+
+                    <div class="home-features-linear">
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">01</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">Smart Multi-Shot Camera & Pose Timer</h3>
+                                <p class="feature-desc">Kamera cerdas dengan hitungan mundur otomatis (3 detik, 5 detik, atau manual), peralihan lensa depan/belakang, mode cermin (mirroring), dan pengambilan pose beruntun otomatis sesuai jumlah slot bingkai.</p>
+                            </div>
+                        </div>
+
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">02</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">Kurasi Bingkai & Presisi Grid Berlapis</h3>
+                                <p class="feature-desc">Mendukung tata letak strip vertikal 3 foto, grid 2x2, hingga strip panjang Korea. Sistem otomatis menempatkan foto secara pas ke dalam lubang transparan bingkai tanpa terdistorsi.</p>
+                            </div>
+                        </div>
+
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">03</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">10 Preset Filter Estetik Real-Time</h3>
+                                <p class="feature-desc">Ubah nuansa wajah dan warna secara instan dengan filter studio (Warm Natural, Retro Noir, Korean Pastel, Golden Hour, Soft Film, Vivid Pop, dll.) dengan live preview sebelum tombol rana berbunyi.</p>
+                            </div>
+                        </div>
+
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">04</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">Studio Toolbox, Personalisasi & Stiker</h3>
+                                <p class="feature-desc">Tambahkan stiker artistik, atur ukuran, rotasi bebas, serta sesuaikan teks judul dan tanggal kenangan pada bingkai untuk menciptakan hasil foto yang benar-benar personal.</p>
+                            </div>
+                        </div>
+
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">05</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">Dashboard Galeri Pribadi Pengunjung</h3>
+                                <p class="feature-desc">Setiap pengunjung memiliki halaman galeri tersendiri yang aman di perangkatnya. Anda dapat meninjau kembali semua sesi foto yang pernah diambil kapan saja.</p>
+                            </div>
+                        </div>
+
+                        <div class="home-feature-row home-sub-item">
+                            <div class="feature-index">06</div>
+                            <div class="feature-content">
+                                <h3 class="feature-title">Unduh High Definition & Scan QR Instan</h3>
+                                <p class="feature-desc">Simpan hasil cetak beresolusi tinggi langsung ke galeri ponsel Anda atau bagikan link unduhan dengan mudah melalui kode QR berkecepatan tinggi.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SUB 3: ALASAN MENGAPA PHOTOART DICIPTAKAN -->
+                <section id="home-purpose" class="home-sub-section home-reveal" data-reveal>
+                    <div class="home-sub-header">
+                        <span class="home-sub-num">03</span>
+                        <span class="home-sub-badge">LATAR BELAKANG & TUJUAN</span>
+                        <h2 class="home-sub-title">Mengapa PhotoART Diciptakan?</h2>
+                        <div class="home-title-line"></div>
+                    </div>
+
+                    <div class="home-purpose-list">
+                        <div class="home-purpose-item home-sub-item">
+                            <div class="purpose-indicator">
+                                <span class="purpose-bullet"></span>
+                            </div>
+                            <div class="purpose-content">
+                                <h3 class="purpose-title">Mendobrak Keterbatasan Studio Fisik & Antrean</h3>
+                                <p class="purpose-desc">
+                                    Untuk menikmati bilik photobooth konvensional, orang sering kali harus menempuh perjalanan ke pusat perbelanjaan, membayar biaya mahal untuk beberapa lembar foto, dan mengantre panjang. PhotoART diciptakan agar keseruan berfoto strip dapat diakses oleh siapa saja, di mana saja—baik saat berkumpul santai, pesta ulang tahun, maupun momen spontan bersama orang terkasih—cukup dengan membuka satu link di ponsel.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="home-purpose-item home-sub-item">
+                            <div class="purpose-indicator">
+                                <span class="purpose-bullet"></span>
+                            </div>
+                            <div class="purpose-content">
+                                <h3 class="purpose-title">Menghidupkan Kembali Nostalgia Foto Strip di Era Modern</h3>
+                                <p class="purpose-desc">
+                                    Di zaman sekarang, kita mengambil ratusan foto di ponsel setiap hari, namun sering kali foto-foto tersebut tenggelam dan terlupakan di galeri tanpa kesan mendalam. Format foto strip memiliki keajaiban tersendiri: membatasi pose dalam urutan cerita berurutan yang sentimental, autentik, dan tak lekang oleh waktu. PhotoART menggabungkan nilai nostalgia klasik ini dengan kemudahan teknologi masa kini.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="home-purpose-item home-sub-item">
+                            <div class="purpose-indicator">
+                                <span class="purpose-bullet"></span>
+                            </div>
+                            <div class="purpose-content">
+                                <h3 class="purpose-title">Memberikan Kebebasan Berekspresi Tanpa Rasa Canggung</h3>
+                                <p class="purpose-desc">
+                                    Banyak orang merasa kaku, canggung, atau malu ketika berfoto di studio terbuka atau di depan fotografer dan kerumunan orang. Dengan PhotoART di perangkat pribadi, pengguna memiliki ruang privat yang nyaman untuk tertawa lepas, berekspresi bebas, dan berkreasi bersama teman terdekat tanpa tekanan dari siapa pun.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BOTTOM CALL-TO-ACTION (START SESSION) -->
+                <section class="home-cta-section home-reveal" data-reveal>
+                    <div class="home-cta-box">
+                        <div class="cta-badge">MULAI SEKARANG</div>
+                        <h2 class="cta-title">Siap Mengabadikan Momen Istimewa Anda?</h2>
+                        <p class="cta-desc">Masuk ke ruang photobooth sekarang dan nikmati pengalaman studio foto strip modern langsung dari ponsel Anda.</p>
+                        <a href="booth.html" class="btn-home-start btn-home-start-large" id="btn-bottom-start">
+                            <span>Mulai Pengambilan Foto</span>
+                            <span class="btn-arrow">➔</span>
+                        </a>
+                    </div>
+                </section>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Studio Footer -->
+    <footer class="app-footer" style="background: #ffffff; border-top: 1px solid #e5e7eb; padding: 24px 16px; text-align: center;">
+        <p style="color: #6b7280; font-size: 12px; margin-bottom: 8px;">PHOTOART PHOTO BOOTH STUDIO &bull; CAPTURE YOUR BEST MOMENTS</p>
+        <div class="footer-links-row" style="display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 12.5px;">
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/filters.js"></script>
+    <script src="js/frames.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

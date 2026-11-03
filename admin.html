@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PhotoArt - Control Center Operator</title>
+    <meta name="description" content="Panel Khusus Operator Booth PhotoArt: Kurasi Bingkai, Pengawasan Media, dan Pemulihan Foto Pengunjung.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20100%20100%22><text y=%22.9em%22 font-size=%2290%22></text></svg>">
+</head>
+<body>
+
+    <!-- Ambient Studio Background Photo Layers for Admin Operator -->
+    <div class="ambient-bg-gallery" aria-hidden="true">
+        <div class="ambient-photo photo-corner-tr">
+            <img src="assets/frames/thumb_frame_strip_3.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-mid-left">
+            <img src="assets/mini_polaroid_1.png" alt="" loading="lazy">
+        </div>
+        <div class="ambient-photo photo-bot-right">
+            <img src="assets/frames/thumb_borcelle_4pose.png" alt="" loading="lazy">
+        </div>
+    </div>
+
+    <!-- Operator Header Bar -->
+    <header class="app-header">
+        <div class="header-container">
+            <a href="index.html" class="logo-brand" title="← Beranda PhotoART">
+                <div class="logo-mark luxury-camera-mark">
+                    <svg class="luxury-camera-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#fbbf24" />
+                                <stop offset="50%" stop-color="#f59e0b" />
+                                <stop offset="100%" stop-color="#d97706" />
+                            </linearGradient>
+                            <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1e222d" />
+                                <stop offset="100%" stop-color="#0b0e14" />
+                            </linearGradient>
+                            <radialGradient id="lensReflect" cx="35%" cy="35%" r="65%">
+                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95" />
+                                <stop offset="50%" stop-color="#1d4ed8" stop-opacity="0.85" />
+                                <stop offset="100%" stop-color="#030712" />
+                            </radialGradient>
+                        </defs>
+                        <rect x="4" y="10" width="32" height="23" rx="5" fill="url(#bodyGradient)" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <path d="M13 10V7.5C13 6.67 13.67 6 14.5 6H19.5C20.33 6 21 6.67 21 7.5V10" fill="#181c26" stroke="url(#goldGradient)" stroke-width="1.2" />
+                        <circle cx="28.5" cy="7" r="1.8" fill="url(#goldGradient)" />
+                        <circle cx="9.5" cy="15" r="1.5" fill="#ef4444" />
+                        <circle cx="20" cy="21.5" r="8.5" fill="#080b11" stroke="url(#goldGradient)" stroke-width="1.5" />
+                        <circle cx="20" cy="21.5" r="6.8" stroke="rgba(255,255,255,0.25)" stroke-width="0.8" />
+                        <circle cx="20" cy="21.5" r="5.2" fill="url(#lensReflect)" />
+                        <circle cx="18.2" cy="19.7" r="1.2" fill="#ffffff" opacity="0.95" />
+                        <path d="M30 14.5L31.5 13M31.5 13L33 14.5M31.5 13V15.5" stroke="url(#goldGradient)" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="logo-text-group">
+                    <div class="logo-title-row">
+                        <span class="logo-title-main">PhotoART</span>
+                        <span class="logo-luxury-pill">OPERATOR</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Operator Quick Nav -->
+            <div class="operator-header-nav">
+                <a href="booth.html" class="btn-operator-link" title="Buka Bilik Photobooth Pengunjung">
+                    <span></span> <span>Buka Bilik Foto</span>
+                </a>
+                <a href="index.html" class="btn-operator-link" title="Buka Halaman Utama">
+                    <span></span> <span>Beranda</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+
+        <!-- ================= ADMIN / OPERATOR VIEW ================= -->
+        <section id="step-admin" class="step-view active">
+            
+            <!-- Admin Login Screen (If not authenticated) -->
+            <div id="admin-login-card" class="card admin-vault-card" style="max-width: 440px; margin: 30px auto; padding: 30px 20px; text-align: center; position: relative;">
+                <div class="vault-security-badge">
+                    <span class="vault-led-dot"></span>
+                    <span>RESTRICTED CENTRAL ADMIN VAULT</span>
+                </div>
+                <div class="vault-keyhole-icon"></div>
+                <h2 class="card-title" style="justify-content: center; font-size: 21px; margin-top: 8px;">Akses Sentral Operator</h2>
+                <p class="card-subtitle" style="max-width: 360px; margin: 0 auto 16px;">
+                    Halaman kontrol operator booth untuk <strong>mengunggah & kurasi bingkai</strong>, serta memantau <strong>seluruh foto dari semua pengunjung</strong>.
+                </p>
+
+                <form id="form-admin-login" style="margin-top: 18px;">
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label" for="input-admin-pin">PIN Rahasia Operator:</label>
+                        <input id="input-admin-pin" class="form-input" type="password" placeholder="Masukkan PIN" maxlength="16" required style="font-size: 17px; letter-spacing: 0.25em; text-align: center; font-weight: 800;">
+                    </div>
+                    <div id="admin-login-error" class="login-error-msg" style="display: none;"></div>
+                    <button type="submit" class="btn-primary" style="margin-top: 12px;">
+                        <span>Buka Dashboard Operator</span>
+                        <span></span>
+                    </button>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 14px;">
+                    </p>
+                </form>
+            </div>
+
+            <!-- Admin Panel Content (If authenticated) -->
+            <div id="admin-panel-content" style="display: none;">
+                
+                <!-- Admin Header Bar -->
+                <div class="admin-top-bar card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; margin-bottom: 14px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;"></span>
+                            <h2 style="font-size: 16px; font-weight: 800; color: #000000; margin: 0;">PhotoArt Operator Control Center</h2>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                            Kurasi Bingkai, Pengawasan Media Pengunjung & Pemulihan Foto Terhapus (*Recycle Bin*)
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="booth.html" class="btn-secondary" style="padding: 7px 12px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>Bilik Foto</span>
+                        </a>
+                        <button type="button" class="btn-secondary" id="btn-admin-refresh" style="padding: 7px 12px; font-size: 12px;">
+                            Refresh
+                        </button>
+                        <button type="button" class="btn-secondary" id="btn-admin-logout" style="padding: 7px 12px; font-size: 12px; border-color: #fecaca; color: #dc2626;">
+                            Keluar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metric Cards -->
+                <div class="admin-stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-num" id="stat-total-frames">0</span>
+                        <span class="stat-label">Bingkai Booth</span>
+                    </div>
+                    <div class="stat-card active-stat">
+                        <span class="stat-num" id="stat-active-photos">0</span>
+                        <span class="stat-label">Foto Aktif Pengunjung</span>
+                    </div>
+                    <div class="stat-card trash-stat">
+                        <span class="stat-num" id="stat-deleted-photos">0</span>
+                        <span class="stat-label">Foto Terhapus (Sampah)</span>
+                    </div>
+                </div>
+
+                <!-- Admin Tabs Navigation -->
+                <div class="card" style="padding: 16px; margin-top: 14px;">
+                    <div class="admin-tabs-nav">
+                        <button type="button" class="admin-tab-btn active" data-admin-tab="frames" id="tab-btn-frames">
+                            <span>Kelola Bingkai / Frame</span>
+                            <span class="tab-badge" id="badge-frames-count">0</span>
+                        </button>
+                        <button type="button" class="admin-tab-btn" data-admin-tab="trash" id="tab-btn-trash">
+                            <span>Keranjang Sampah</span>
+                            <span class="tab-badge" id="badge-trash-count">0</span>
+                        </button>
+                        <button type="button" class="admin-tab-btn" data-admin-tab="active" id="tab-btn-active">
+                            <span>Media Semua User</span>
+                            <span class="tab-badge" id="badge-active-count">0</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: KOTAK KURASI BINGKAI BOOTH (Publish untuk User atau Private) -->
+                    <div id="admin-frames-view" class="admin-tab-view">
+                        
+                        <!-- KOTAK KURASI BINGKAI -->
+                        <div class="curation-control-box" style="margin-top: 14px; padding: 20px;">
+                            
+                            <!-- Header Kotak Kurasi -->
+                            <div class="curation-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px; margin-bottom: 18px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 9px;">
+                                        <span style="font-size: 22px;"></span>
+                                        <h3 style="font-size: 17px; font-weight: 800; color: #000000; margin: 0;">Kotak Kurasi Bingkai (Publish / Private)</h3>
+                                    </div>
+                                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px; max-width: 540px; line-height: 1.5;">
+                                        Semua bingkai masuk ke kotak admin ini terlebih dahulu. Tentukan bingkai mana yang <strong>Dipublish (Aktif di Bilik User)</strong> atau <strong>Diprivate (Hanya disimpan di Admin)</strong>.
+                                    </p>
+                                </div>
+
+                                <!-- Filter Tab: Semua / Published / Private + Tombol Upload Opsional -->
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <div class="curation-filter-tabs" style="display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 3px 5px;">
+                                        <button type="button" class="curation-tab-btn active" data-curation-filter="all" id="btn-filter-frames-all">
+                                            Semua (<span id="count-curation-all">0</span>)
+                                        </button>
+                                        <button type="button" class="curation-tab-btn" data-curation-filter="published" id="btn-filter-frames-pub">
+                                            Published (<span id="count-curation-pub">0</span>)
+                                        </button>
+                                        <button type="button" class="curation-tab-btn" data-curation-filter="draft" id="btn-filter-frames-priv">
+                                            Private (<span id="count-curation-priv">0</span>)
+                                        </button>
+                                    </div>
+
+                                    <!-- Upload button opsional -->
+                                    <input type="file" id="input-admin-frame-upload" accept="image/png, image/jpeg, image/webp" style="display: none;">
+                                    <button type="button" id="btn-admin-upload-frame" class="btn-secondary" style="padding: 7px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                                        <span>+ Unggah Frame Baru</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Admin Frames Grid (Kartu-Kartu Frame) -->
+                            <div id="admin-frames-grid" class="admin-frames-grid">
+                                <!-- Injected dynamically via js/app.js -->
+                            </div>
+
+                            <!-- Empty State for Admin Frames -->
+                            <div id="admin-frames-empty" class="dashboard-empty-state" style="display: none; padding: 36px 20px; text-align: center;">
+                                <div class="empty-icon" style="font-size: 38px; margin-bottom: 8px;"></div>
+                                <h3 style="color: #000000; font-size: 16px; font-weight: 800; margin-bottom: 6px;">Belum Ada Bingkai di Kategori Ini</h3>
+                                <p style="color: var(--text-muted); font-size: 12px; max-width: 440px; margin: 0 auto;">Simpan file PNG bingkai ke dalam folder <code>assets/frames/</code> atau klik tombol "+ Unggah Frame Baru" untuk memasukkannya ke kotak kurasi ini.</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- TAB 2 & 3: MEDIA FOTO USER (Trash & Active) -->
+                    <div id="admin-photos-view" class="admin-tab-view" style="display: none;">
+                        <div id="admin-trash-notice" class="admin-alert-banner" style="margin-top: 14px;">
+                            <strong>Fitur Pemulihan Foto:</strong> Jika pengunjung tidak sengaja menghapus foto dari bilik mereka, klik <strong>"🔄 Pulihkan Foto ke User"</strong>. Foto akan langsung kembali tampil di galeri pengunjung secara *real-time*.
+                        </div>
+
+                        <!-- Admin Media Grid -->
+                        <div id="admin-media-grid" class="admin-media-grid" style="margin-top: 16px;">
+                            <!-- Injected dynamically via js/app.js -->
+                        </div>
+
+                        <!-- Empty State for Admin Media -->
+                        <div id="admin-media-empty" class="dashboard-empty-state" style="display: none; padding: 30px;">
+                            <div class="empty-icon"></div>
+                            <h3>Tidak Ada Foto di Kategori Ini</h3>
+                            <p>Semua media berjalan normal tanpa kendala.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODAL: ATUR BINGKAI BARU DARI GALERI ================= -->
+    <div id="modal-frame-setup" class="modal-backdrop">
+        <div class="modal-card frame-setup-card">
+            <div class="modal-header">
+                <div>
+                    <span class="ticket-pass-badge">PENGATURAN BINGKAI KUSTOM</span>
+                    <h3 class="modal-title" style="margin-top: 4px;">Pasang Frame dari Galeri</h3>
+                </div>
+                <button id="btn-close-frame-setup" class="btn-modal-close" type="button">&times;</button>
+            </div>
+
+            <div class="frame-setup-content">
+                <!-- Preview Gambar yang Dipilih -->
+                <div class="frame-upload-preview-container">
+                    <img id="frame-setup-preview-img" src="" alt="Preview Frame" />
+                    <span id="frame-setup-aspect-badge" class="frame-aspect-pill">Rasio Asli</span>
+                </div>
+
+                <!-- Input Nama Frame -->
+                <div class="form-group" style="margin-top: 14px;">
+                    <label for="frame-setup-name" class="control-label">Nama Bingkai:</label>
+                    <input type="text" id="frame-setup-name" class="styled-text-input" placeholder="Misal: Frame Ulang Tahun, Photobooth Strip" maxlength="35">
+                </div>
+
+                <!-- Deteksi Slot Grid Otomatis -->
+                <div id="frame-detection-box" class="detection-result-box">
+                    <div class="detection-icon"></div>
+                    <div class="detection-info">
+                        <strong id="detection-status-title">Menganalisis Format Bingkai...</strong>
+                        <p id="detection-status-desc">Menyesuaikan lubang transparan foto secara otomatis.</p>
+                    </div>
+                </div>
+
+                <div class="modal-actions-row">
+                    <button type="button" id="btn-cancel-frame-setup" class="btn-secondary" style="flex: 1;">Batal</button>
+                    <button type="button" id="btn-confirm-save-frame" class="btn-primary" style="flex: 2;">
+                        <span>Simpan Bingkai / Frame</span>
+                        <span></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: LIGHTBOX FULL RESOLUTION VIEWER ================= -->
+    <div id="modal-lightbox" class="modal-backdrop">
+        <div class="lightbox-container">
+            <button id="btn-close-lightbox" class="btn-lightbox-close" type="button" title="Tutup">&times;</button>
+            <div class="lightbox-img-wrapper">
+                <img id="lightbox-img" src="" alt="Foto Resolusi Penuh">
+            </div>
+            <div class="lightbox-caption-bar">
+                <span id="lightbox-caption">Foto Photobooth</span>
+                <button id="btn-lightbox-download" class="btn-primary" style="padding: 8px 16px; font-size: 12px;" type="button">
+                    Unduh HD
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div id="photoart-toast" class="photoart-toast"></div>
+
+    <!-- Studio Footer -->
+    <footer class="app-footer">
+        <p>PHOTOART OPERATOR CONTROL CENTER &bull; MANAGEMENT & AUDIT SYSTEM</p>
+        <div class="footer-links-row" style="margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 12px;">   
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/filters.js"></script>
+    <script src="js/frames.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
