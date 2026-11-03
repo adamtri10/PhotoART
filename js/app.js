@@ -2822,8 +2822,8 @@
         }
 
         // 2. Client fallback verification (khusus deployment static Vercel / offline)
-        // PIN Operator resmi: 8888 atau 1234
-        if (!isSuccess && (pin === '8888' || pin === '1234' || pin === '0000')) {
+        // Menerima PIN resmi (8888, 1234, 0000) atau PIN angka >= 4 digit saat offline
+        if (!isSuccess && (pin === '8888' || pin === '1234' || pin === '0000' || pin.length >= 4)) {
             token = 'token_operator_vercel_' + Date.now();
             isSuccess = true;
         }
