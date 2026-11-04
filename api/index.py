@@ -42,6 +42,12 @@ def save_photos_db(data):
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print("Save photos error:", e)
+    try:
+        fallback_path = os.path.join(DATA_DIR, "photos_db.json")
+        with open(fallback_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 def get_frames_db():
     if os.path.exists(TMP_FRAMES_DB):
@@ -338,7 +344,7 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             user_id = self.headers.get("X-User-Id") or body.get("userId") or f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}"
-            photo_id = f"photo_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+            photo_id = body.get("id") or f"photo_{int(time.time())}_{uuid.uuid4().hex[:6]}"
             new_photo = {
                 "id": photo_id,
                 "userId": user_id,
@@ -352,8 +358,12 @@ class handler(BaseHTTPRequestHandler):
             }
 
             photos = get_photos_db()
-            photos.insert(0, new_photo)
-            save_photos_db(photos[:60])
+            existing_idx = next((i for i, p in enumerate(photos) if p.get("id") == photo_id), -1)
+            if existing_idx >= 0:
+                photos[existing_idx] = new_photo
+            else:
+                photos.insert(0, new_photo)
+            save_photos_db(photos[:80])
 
             self._send_json(200, {
                 "success": True,
