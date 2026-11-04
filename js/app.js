@@ -786,6 +786,8 @@
         currentShotIndex: 0,
         capturedImages: [],
         selectedFilter: 'normal',
+        slotFilters: [],
+        editorFilterTargetSlot: 'all',
         frameHeader: '',
         frameSubtitle: '',
         stickers: [],
@@ -805,6 +807,8 @@
         adminToken: sessionStorage.getItem('photoart_admin_token') || localStorage.getItem('photoart_admin_token') || '',
         adminActiveTab: 'frames',
         adminCurationFilter: 'all',
+        adminSelectedUserFilter: 'all',
+        userName: localStorage.getItem('photoart_user_name') || '',
         currentSessionUploaded: false,
         lastUploadedPhotoId: null,
         isUploading: false
@@ -880,6 +884,13 @@
         nativeCameraInput: document.getElementById('native-camera-input'),
         btnNativeGallery: document.getElementById('btn-native-gallery'),
         nativeFileInput: document.getElementById('native-file-input'),
+        modalGalleryFill: document.getElementById('modal-gallery-fill'),
+        galleryFillDesc: document.getElementById('gallery-fill-desc'),
+        galleryFillSlotCount: document.getElementById('gallery-fill-slot-count'),
+        galleryFillChosenCount: document.getElementById('gallery-fill-chosen-count'),
+        btnGalleryFillAll: document.getElementById('btn-gallery-fill-all'),
+        btnGalleryPickNext: document.getElementById('btn-gallery-pick-next'),
+        btnEditorPickGallery: document.getElementById('btn-editor-pick-gallery'),
         shotCounterText: document.getElementById('shot-counter-text'),
         shotThumbsContainer: document.getElementById('shot-thumbs-container'),
         cameraNotice: document.getElementById('camera-notice'),
@@ -927,6 +938,12 @@
         statTotalPhotos: document.getElementById('stat-total-photos'),
         statActivePhotos: document.getElementById('stat-active-photos'),
         statDeletedPhotos: document.getElementById('stat-deleted-photos'),
+        statTotalUsers: document.getElementById('stat-total-users'),
+        selectAdminUserFilter: document.getElementById('select-admin-user-filter'),
+        adminUserChipsContainer: document.getElementById('admin-user-chips-container'),
+        adminUserSummaryText: document.getElementById('admin-user-summary-text'),
+        inputSetupUserName: document.getElementById('input-setup-user-name'),
+        inputUserName: document.getElementById('input-user-name'),
         tabBtnTrash: document.getElementById('tab-btn-trash'),
         tabBtnActive: document.getElementById('tab-btn-active'),
         badgeTrashCount: document.getElementById('badge-trash-count'),
@@ -1419,13 +1436,78 @@
         });
     }
 
+    function renderEditorSlotTabs() {
+        const container = document.getElementById('editor-slot-filter-tabs');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const theme = PhotoFrames.getTheme(state.selectedThemeId);
+        const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
+        const slotCount = Math.max(state.capturedImages.length, layoutConfig.count);
+
+        if (!state.slotFilters) state.slotFilters = [];
+        for (let i = 0; i < slotCount; i++) {
+            if (!state.slotFilters[i]) {
+                state.slotFilters[i] = state.selectedFilter || 'normal';
+            }
+        }
+
+        // Tab "Semua Foto"
+        const allTab = document.createElement('button');
+        allTab.type = 'button';
+        allTab.className = 'editor-slot-tab-btn' + (state.editorFilterTargetSlot === 'all' ? ' active' : '');
+        allTab.innerHTML = `<span>✨ Semua Pose</span>`;
+        allTab.addEventListener('click', () => {
+            state.editorFilterTargetSlot = 'all';
+            renderEditorSlotTabs();
+            updateEditorFilterChipsHighlight();
+        });
+        container.appendChild(allTab);
+
+        // Tab per Slot Foto (Pose 1, Pose 2, Pose 3...)
+        const isBorcelle = theme && String(theme.id).includes('borcelle');
+        for (let i = 0; i < slotCount; i++) {
+            const slotTab = document.createElement('button');
+            slotTab.type = 'button';
+            slotTab.className = 'editor-slot-tab-btn' + (state.editorFilterTargetSlot === i ? ' active' : '');
+            const currentFilterId = state.slotFilters[i] || 'normal';
+            const filterObj = PhotoFilters.getFilter(currentFilterId);
+            const poseName = isBorcelle ? `P${i + 1}` : `Pose ${i + 1}`;
+            slotTab.innerHTML = `
+                <span>${poseName}</span>
+                <span class="slot-filter-badge">${filterObj.name}</span>
+            `;
+            slotTab.addEventListener('click', () => {
+                state.editorFilterTargetSlot = i;
+                renderEditorSlotTabs();
+                updateEditorFilterChipsHighlight();
+            });
+            container.appendChild(slotTab);
+        }
+    }
+
+    function updateEditorFilterChipsHighlight() {
+        if (!elements.editorFiltersContainer) return;
+
+        let activeFilterId = state.selectedFilter || 'normal';
+        if (state.editorFilterTargetSlot !== 'all' && typeof state.editorFilterTargetSlot === 'number') {
+            activeFilterId = (state.slotFilters && state.slotFilters[state.editorFilterTargetSlot]) || 'normal';
+        }
+
+        elements.editorFiltersContainer.querySelectorAll('.filter-chip').forEach(c => {
+            c.classList.toggle('active', c.getAttribute('data-editor-filter-id') === activeFilterId);
+        });
+    }
+
     function populateEditorFilters() {
+        renderEditorSlotTabs();
+
         if (!elements.editorFiltersContainer) return;
         elements.editorFiltersContainer.innerHTML = '';
 
         PhotoFilters.list.forEach(filter => {
             const chip = document.createElement('button');
-            chip.className = 'filter-chip' + (state.selectedFilter === filter.id ? ' active' : '');
+            chip.className = 'filter-chip';
             chip.type = 'button';
             chip.setAttribute('data-editor-filter-id', filter.id);
 
@@ -1435,12 +1517,33 @@
             `;
 
             chip.addEventListener('click', () => {
-                applyLiveFilter(filter.id);
+                const theme = PhotoFrames.getTheme(state.selectedThemeId);
+                const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
+                const count = Math.max(state.capturedImages.length, layoutConfig.count);
+
+                if (!state.slotFilters) state.slotFilters = [];
+
+                if (state.editorFilterTargetSlot === 'all') {
+                    state.selectedFilter = filter.id;
+                    for (let i = 0; i < count; i++) {
+                        state.slotFilters[i] = filter.id;
+                    }
+                    showToast(`✨ Filter "${filter.name}" diterapkan ke semua pose foto!`, 'info', 1800);
+                } else if (typeof state.editorFilterTargetSlot === 'number') {
+                    const slotIdx = state.editorFilterTargetSlot;
+                    state.slotFilters[slotIdx] = filter.id;
+                    showToast(`✨ Filter "${filter.name}" diterapkan ke Pose ${slotIdx + 1}!`, 'info', 1800);
+                }
+
+                renderEditorSlotTabs();
+                updateEditorFilterChipsHighlight();
                 renderCanvas();
             });
 
             elements.editorFiltersContainer.appendChild(chip);
         });
+
+        updateEditorFilterChipsHighlight();
     }
 
     function applyLiveFilter(filterId) {
@@ -1503,6 +1606,27 @@
             localStorage.setItem('photoart_user_id', uid);
         }
         return uid;
+    }
+
+    function getDeviceInfoSummary() {
+        try {
+            const ua = navigator.userAgent || '';
+            let device = 'Desktop';
+            if (/Android/i.test(ua)) device = 'Android';
+            else if (/iPhone/i.test(ua)) device = 'iPhone';
+            else if (/iPad/i.test(ua)) device = 'iPad';
+            else if (/Mobile/i.test(ua)) device = 'Mobile';
+
+            let browser = '';
+            if (/Chrome/i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome';
+            else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+            else if (/Firefox/i.test(ua)) browser = 'Firefox';
+            else if (/Edg/i.test(ua)) browser = 'Edge';
+
+            return browser ? `${device} (${browser})` : device;
+        } catch (e) {
+            return 'Ponsel/Browser';
+        }
     }
 
     function populateStickers() {
@@ -2692,7 +2816,12 @@
         ctx.drawImage(elements.video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const shotIndex = state.capturedImages.length;
         state.capturedImages.push(imgData);
+
+        // Rekam filter aktif khusus untuk foto pose ini
+        if (!state.slotFilters) state.slotFilters = [];
+        state.slotFilters[shotIndex] = state.selectedFilter || 'normal';
 
         if (state.flashEnabled) {
             setTimeout(async () => {
@@ -2704,53 +2833,141 @@
 
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
         const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
+        const nextShotNum = state.capturedImages.length + 1;
         if (state.capturedImages.length >= layoutConfig.count) {
             setTimeout(() => {
                 showStep('editor');
             }, 600);
         } else {
+            showToast(`📸 Foto ${state.capturedImages.length} tersimpan! Pilih filter di bawah untuk Foto ${nextShotNum}.`, 'info', 2800);
             if (state.timerDuration > 0) {
                 setTimeout(() => {
                     if (state.currentStep === 'camera' && state.capturedImages.length < layoutConfig.count) {
                         triggerCapture();
                     }
-                }, 1300);
+                }, 2200);
             }
         }
     }
 
     async function handleNativeFiles(files) {
         if (!files || files.length === 0) return;
+
+        showToast('⏳ Membaca & memproses foto dari galeri ponsel...', 'info', 10000);
+
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
         const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
         const maxSlots = layoutConfig.count;
 
+        // Jika slot foto sebelumnya sudah penuh atau user memicu ganti foto dari galeri,
+        // reset sesi foto agar foto baru dari galeri langsung mengisi slot!
+        if (state.capturedImages.length >= maxSlots) {
+            state.capturedImages = [];
+            state.slotFilters = [];
+        }
+
+        let loadedCount = 0;
         for (let i = 0; i < files.length; i++) {
             if (state.capturedImages.length >= maxSlots) break;
             const file = files[i];
             const dataUrl = await readFileAsOptimizedDataUrl(file);
             if (dataUrl) {
                 state.capturedImages.push(dataUrl);
+                if (!state.slotFilters) state.slotFilters = [];
+                state.slotFilters.push(state.selectedFilter || 'normal');
+                loadedCount++;
             }
         }
 
         updateShotThumbnails();
 
+        if (loadedCount === 0) {
+            showToast('❌ Gagal memuat foto dari galeri. Pastikan file berupa foto yang valid (JPG/PNG/WebP/HEIC).', 'error', 4000);
+            return;
+        }
+
+        // Jika user berada di step editor (misal klik "Ganti Foto" di editor)
+        if (state.currentStep === 'editor') {
+            const lastPhoto = state.capturedImages[state.capturedImages.length - 1];
+            while (state.capturedImages.length < maxSlots) {
+                state.capturedImages.push(lastPhoto);
+            }
+            renderCanvas();
+            showToast('✨ Foto berhasil diperbarui di editor!', 'success', 2500);
+            return;
+        }
+
+        // Jika semua slot sudah terisi penuh (misal user pilih 3 atau 4 foto sekaligus)
         if (state.capturedImages.length >= maxSlots) {
-            showToast('🎉 Semua slot foto telah terisi! Membuka editor studio...', 'success', 2500);
+            showToast(`🎉 Semua ${maxSlots} slot foto telah terisi! Membuka editor studio...`, 'success', 2500);
             setTimeout(() => {
                 showStep('editor');
-            }, 500);
+            }, 400);
+            return;
+        }
+
+        // Jika user baru memilih sebagian foto (misal 1 foto dari 3 slot yang dibutuhkan)
+        if (elements.modalGalleryFill) {
+            if (elements.galleryFillSlotCount) elements.galleryFillSlotCount.innerText = `${maxSlots} slot foto`;
+            if (elements.galleryFillChosenCount) elements.galleryFillChosenCount.innerText = `${state.capturedImages.length} foto`;
+            elements.modalGalleryFill.classList.add('show');
+            showToast(`✅ ${state.capturedImages.length} foto berhasil dimuat!`, 'success', 2000);
         } else {
-            showToast(`📸 Foto ${state.capturedImages.length} dari ${maxSlots} tersimpan! Tekan "Buka Kamera HP Langsung" lagi untuk mengambil foto berikutnya (${maxSlots - state.capturedImages.length} slot lagi).`, 'info', 4000);
+            showToast(`📸 Foto ${state.capturedImages.length} dari ${maxSlots} tersimpan! Pilih foto berikutnya dari galeri (${maxSlots - state.capturedImages.length} slot lagi).`, 'info', 4000);
+        }
+
+        if (elements.btnProceedToEditor) {
+            elements.btnProceedToEditor.style.display = 'inline-flex';
         }
     }
 
     async function readFileAsOptimizedDataUrl(file) {
-        // Coba createImageBitmap terlebih dahulu (otomatis menangani EXIF orientation pada kamera smartphone)
+        if (!file) return null;
+
+        // Method 1: URL.createObjectURL (Fastest, low memory, native mobile Safari HEIC & HDR support)
+        try {
+            const dataUrl = await new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const maxDim = 1600;
+                        let w = img.naturalWidth || img.width || 800;
+                        let h = img.naturalHeight || img.height || 600;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) {
+                                h = Math.round((h * maxDim) / w);
+                                w = maxDim;
+                            } else {
+                                w = Math.round((w * maxDim) / h);
+                                h = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        URL.revokeObjectURL(url);
+                        resolve(canvas.toDataURL('image/jpeg', 0.92));
+                    } catch (drawErr) {
+                        URL.revokeObjectURL(url);
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    resolve(null);
+                };
+                img.src = url;
+            });
+            if (dataUrl) return dataUrl;
+        } catch (e) {}
+
+        // Method 2: createImageBitmap (Hardware accelerated bitmap decoding)
         try {
             if (window.createImageBitmap) {
-                const bmp = await createImageBitmap(file);
+                const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
                 const maxDim = 1600;
                 let w = bmp.width;
                 let h = bmp.height;
@@ -2769,39 +2986,48 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(bmp, 0, 0, w, h);
                 if (typeof bmp.close === 'function') bmp.close();
-                return canvas.toDataURL('image/jpeg', 0.95);
+                return canvas.toDataURL('image/jpeg', 0.92);
             }
-        } catch(e) {}
+        } catch (e) {}
 
+        // Method 3: FileReader readAsDataURL fallback
         return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const maxDim = 1600;
-                    let w = img.width;
-                    let h = img.height;
-                    if (w > maxDim || h > maxDim) {
-                        if (w > h) {
-                            h = Math.round((h * maxDim) / w);
-                            w = maxDim;
-                        } else {
-                            w = Math.round((w * maxDim) / h);
-                            h = maxDim;
+            try {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const maxDim = 1600;
+                            let w = img.naturalWidth || img.width || 800;
+                            let h = img.naturalHeight || img.height || 600;
+                            if (w > maxDim || h > maxDim) {
+                                if (w > h) {
+                                    h = Math.round((h * maxDim) / w);
+                                    w = maxDim;
+                                } else {
+                                    w = Math.round((w * maxDim) / h);
+                                    h = maxDim;
+                                }
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = w;
+                            canvas.height = h;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, w, h);
+                            resolve(canvas.toDataURL('image/jpeg', 0.92));
+                        } catch (err) {
+                            resolve(e.target.result);
                         }
-                    }
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
-                    resolve(canvas.toDataURL('image/jpeg', 0.95));
+                    };
+                    img.onerror = () => resolve(e.target.result);
+                    img.src = e.target.result;
                 };
-                img.onerror = () => resolve(null);
-                img.src = e.target.result;
-            };
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(file);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            } catch (err) {
+                resolve(null);
+            }
         });
     }
 
@@ -2841,12 +3067,20 @@
                 if (i < currentCount) {
                     const img = document.createElement('img');
                     img.src = state.capturedImages[i];
+                    const slotFilterId = (state.slotFilters && state.slotFilters[i]) || 'normal';
+                    const slotFilter = PhotoFilters.getFilter(slotFilterId);
+                    if (slotFilter && slotFilter.css && slotFilter.css !== 'none') {
+                        img.style.filter = slotFilter.css;
+                    }
                     thumb.appendChild(img);
 
                     const badge = document.createElement('span');
                     badge.className = 'thumb-pose-badge';
                     badge.style.cssText = 'position: absolute; bottom: 2px; left: 2px; background: rgba(0,0,0,0.7); color: #fff; font-size: 9px; font-weight: 800; padding: 1px 4px; border-radius: 3px; pointer-events: none;';
                     badge.innerText = isBorcelle ? `P${i + 1}` : `${i + 1}`;
+                    if (slotFilterId !== 'normal') {
+                        badge.innerText += ` • ${slotFilter.name}`;
+                    }
                     thumb.appendChild(badge);
 
                     const removeBtn = document.createElement('button');
@@ -2856,6 +3090,9 @@
                     removeBtn.onclick = (e) => {
                         e.stopPropagation();
                         state.capturedImages.splice(i, 1);
+                        if (state.slotFilters && state.slotFilters.length > i) {
+                            state.slotFilters.splice(i, 1);
+                        }
                         updateShotThumbnails();
                     };
                     thumb.appendChild(removeBtn);
@@ -2893,13 +3130,13 @@
 
         await PhotoFrames.renderFrameDecorations(ctx, theme, layoutConfig, state.frameHeader, state.frameSubtitle);
 
-        const filter = PhotoFilters.getFilter(state.selectedFilter);
-
         for (let i = 0; i < layoutConfig.slots.length; i++) {
             const slot = layoutConfig.slots[i];
             if (i < state.capturedImages.length) {
                 const imgData = state.capturedImages[i];
-                await drawPhotoInSlot(ctx, imgData, slot, filter, theme);
+                const slotFilterId = (state.slotFilters && state.slotFilters[i]) ? state.slotFilters[i] : (state.selectedFilter || 'normal');
+                const slotFilter = PhotoFilters.getFilter(slotFilterId);
+                await drawPhotoInSlot(ctx, imgData, slot, slotFilter, theme);
             } else {
                 ctx.save();
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
@@ -3036,8 +3273,14 @@
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
         const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
         if (state.capturedImages.length < layoutConfig.count) {
-            showToast(`⚠️ Bingkai ini membutuhkan ${layoutConfig.count} pose foto. Anda baru mengambil ${state.capturedImages.length} pose. Silakan lengkapi pose terlebih dahulu.`, 'warning');
-            return;
+            // Otomatis lengkapi slot yang tersisa dengan foto yang tersedia agar user selalu bisa menyimpan foto
+            const lastPhoto = state.capturedImages[state.capturedImages.length - 1];
+            const lastFilter = (state.slotFilters && state.slotFilters.length > 0) ? state.slotFilters[state.slotFilters.length - 1] : (state.selectedFilter || 'normal');
+            while (state.capturedImages.length < layoutConfig.count) {
+                state.capturedImages.push(lastPhoto);
+                if (!state.slotFilters) state.slotFilters = [];
+                state.slotFilters.push(lastFilter);
+            }
         }
 
         state.isUploading = true;
@@ -3068,12 +3311,16 @@
             }
 
             const currentUserId = getOrCreateUserId();
+            const currentUserName = state.userName || localStorage.getItem('photoart_user_name') || '';
+            const currentUserDevice = getDeviceInfoSummary();
             let finalPhotoId = 'photo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
             // 1. Simpan ke Local Storage / IndexedDB terlebih dahulu (JAMINAN TERSIMPAN DI PERANGKAT)
             const photoRecord = {
                 id: finalPhotoId,
                 userId: currentUserId,
+                userName: currentUserName,
+                userDevice: currentUserDevice,
                 themeId: state.selectedThemeId,
                 themeName: theme.name || 'PhotoArt Studio',
                 header: state.frameHeader || '',
@@ -3089,6 +3336,8 @@
                 id: finalPhotoId,
                 image: dataUrl,
                 userId: currentUserId,
+                userName: currentUserName,
+                userDevice: currentUserDevice,
                 themeId: state.selectedThemeId,
                 themeName: theme.name || 'PhotoArt Studio',
                 header: state.frameHeader || '',
@@ -3693,6 +3942,110 @@
         });
     }
 
+    function computeUserStats(allPhotos) {
+        const userStatsMap = {};
+        allPhotos.forEach(p => {
+            const uid = p.userId || 'user_guest';
+            if (!userStatsMap[uid]) {
+                const fallbackName = p.userName || (p.header && p.header.trim().length > 0 ? p.header.trim() : `Pengunjung #${uid.slice(-6)}`);
+                userStatsMap[uid] = {
+                    userId: uid,
+                    userName: fallbackName,
+                    hasExplicitName: Boolean(p.userName),
+                    userDevice: p.userDevice || '',
+                    totalCount: 0,
+                    activeCount: 0,
+                    deletedCount: 0
+                };
+            }
+            if (p.userName && !userStatsMap[uid].hasExplicitName) {
+                userStatsMap[uid].userName = p.userName;
+                userStatsMap[uid].hasExplicitName = true;
+            }
+            if (p.userDevice && !userStatsMap[uid].userDevice) {
+                userStatsMap[uid].userDevice = p.userDevice;
+            }
+            userStatsMap[uid].totalCount++;
+            if (p.deleted) {
+                userStatsMap[uid].deletedCount++;
+            } else {
+                userStatsMap[uid].activeCount++;
+            }
+        });
+        return userStatsMap;
+    }
+
+    function renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab) {
+        if (!elements.selectAdminUserFilter) return;
+
+        const uids = Object.keys(userStatsMap);
+        const activeUsersCount = uids.filter(uid => userStatsMap[uid].activeCount > 0).length;
+
+        if (elements.statTotalUsers) {
+            elements.statTotalUsers.innerText = activeUsersCount;
+        }
+
+        if (elements.adminUserSummaryText) {
+            elements.adminUserSummaryText.innerText = `Total ${uids.length} pengunjung (${tabPhotos.length} foto pada tab ini)`;
+        }
+
+        const currentVal = state.adminSelectedUserFilter || 'all';
+
+        // Dropdown options
+        elements.selectAdminUserFilter.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.innerText = `Semua Pengunjung (${tabPhotos.length} Foto)`;
+        elements.selectAdminUserFilter.appendChild(allOption);
+
+        uids.forEach(uid => {
+            const u = userStatsMap[uid];
+            const opt = document.createElement('option');
+            opt.value = uid;
+            const relevantCount = isTrashTab ? u.deletedCount : u.activeCount;
+            opt.innerText = `${u.userName} (${relevantCount} foto ${isTrashTab ? 'sampah' : 'aktif'}, total ${u.totalCount})`;
+            elements.selectAdminUserFilter.appendChild(opt);
+        });
+
+        if (currentVal !== 'all' && uids.includes(currentVal)) {
+            elements.selectAdminUserFilter.value = currentVal;
+        } else {
+            elements.selectAdminUserFilter.value = 'all';
+            state.adminSelectedUserFilter = 'all';
+        }
+
+        // Quick filter chips
+        if (elements.adminUserChipsContainer) {
+            elements.adminUserChipsContainer.innerHTML = '';
+
+            const allChip = document.createElement('button');
+            allChip.type = 'button';
+            allChip.className = 'admin-user-chip' + (state.adminSelectedUserFilter === 'all' ? ' active' : '');
+            allChip.innerHTML = `Semua <span class="chip-count">${tabPhotos.length}</span>`;
+            allChip.addEventListener('click', () => {
+                state.adminSelectedUserFilter = 'all';
+                loadAdminMedia();
+            });
+            elements.adminUserChipsContainer.appendChild(allChip);
+
+            uids.forEach(uid => {
+                const u = userStatsMap[uid];
+                const relevantCount = isTrashTab ? u.deletedCount : u.activeCount;
+                if (relevantCount === 0 && tabPhotos.length > 0) return;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'admin-user-chip' + (state.adminSelectedUserFilter === uid ? ' active' : '');
+                chip.innerHTML = `👤 ${escapeHtml(u.userName)} <span class="chip-count">${relevantCount}</span>`;
+                chip.addEventListener('click', () => {
+                    state.adminSelectedUserFilter = (state.adminSelectedUserFilter === uid) ? 'all' : uid;
+                    loadAdminMedia();
+                });
+                elements.adminUserChipsContainer.appendChild(chip);
+            });
+        }
+    }
+
     async function loadAdminDashboard() {
         if (!state.adminToken) return;
 
@@ -3700,6 +4053,20 @@
         const totalCount = PhotoFrames.allThemes ? PhotoFrames.allThemes.length : PhotoFrames.themes.length;
         if (elements.statTotalFrames) elements.statTotalFrames.innerText = totalCount;
         if (elements.badgeFramesCount) elements.badgeFramesCount.innerText = totalCount;
+
+        try {
+            const statsRes = await fetch('/api/admin/stats', {
+                headers: { 'X-Admin-Token': state.adminToken }
+            });
+            if (statsRes.ok) {
+                const sData = await statsRes.json();
+                if (elements.statActivePhotos) elements.statActivePhotos.innerText = sData.activeCount ?? 0;
+                if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = sData.trashCount ?? 0;
+                if (elements.statTotalUsers) elements.statTotalUsers.innerText = sData.activeUsers ?? sData.uniqueUsers ?? 0;
+                if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = sData.activeCount ?? 0;
+                if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = sData.trashCount ?? 0;
+            }
+        } catch (e) {}
 
         if (elements.tabBtnFrames) elements.tabBtnFrames.classList.toggle('active', state.adminActiveTab === 'frames');
         if (elements.tabBtnTrash) elements.tabBtnTrash.classList.toggle('active', state.adminActiveTab === 'trash');
@@ -3715,6 +4082,10 @@
         if (elements.adminFramesView) elements.adminFramesView.style.display = 'none';
         if (elements.adminPhotosView) elements.adminPhotosView.style.display = 'block';
 
+        await loadAdminMedia();
+    }
+
+    async function loadAdminMedia() {
         if (!elements.adminMediaGrid) return;
         elements.adminMediaGrid.style.display = 'grid';
         if (elements.adminMediaEmpty) elements.adminMediaEmpty.style.display = 'none';
@@ -3722,9 +4093,14 @@
         elements.adminMediaGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: var(--text-muted);">
                 <div class="loader-spinner" style="margin: 0 auto 10px; width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--brand-amber); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                <p style="font-size: 13px;">Memuat data media admin...</p>
+                <p style="font-size: 13px;">Memuat data media pengunjung...</p>
             </div>
         `;
+
+        const isTrashTab = (state.adminActiveTab === 'trash');
+        if (elements.adminTrashNotice) {
+            elements.adminTrashNotice.style.display = isTrashTab ? 'block' : 'none';
+        }
 
         try {
             const res = await fetch('/api/admin/photos', {
@@ -3743,19 +4119,21 @@
             if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = data.stats.total;
             if (elements.statActivePhotos) elements.statActivePhotos.innerText = data.stats.active;
             if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = data.stats.deleted;
-
             if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = data.stats.deleted;
             if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = data.stats.active;
-
-            const isTrashTab = (state.adminActiveTab === 'trash');
-            if (elements.adminTrashNotice) {
-                elements.adminTrashNotice.style.display = isTrashTab ? 'block' : 'none';
-            }
 
             const allPhotos = data.photos || [];
             const deletedList = data.deletedPhotos || allPhotos.filter(p => p.deleted);
             const activeList = data.activePhotos || allPhotos.filter(p => !p.deleted);
-            const targetPhotos = isTrashTab ? deletedList : activeList;
+            const tabPhotos = isTrashTab ? deletedList : activeList;
+
+            const userStatsMap = computeUserStats(allPhotos);
+            renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab);
+
+            let targetPhotos = tabPhotos;
+            if (state.adminSelectedUserFilter && state.adminSelectedUserFilter !== 'all') {
+                targetPhotos = tabPhotos.filter(p => (p.userId || 'user_guest') === state.adminSelectedUserFilter);
+            }
 
             if (!targetPhotos || targetPhotos.length === 0) {
                 elements.adminMediaGrid.style.display = 'none';
@@ -3763,10 +4141,10 @@
                     elements.adminMediaEmpty.style.display = 'block';
                     elements.adminMediaEmpty.querySelector('h3').innerText = isTrashTab
                         ? 'Keranjang Sampah Kosong'
-                        : 'Belum Ada Foto Aktif';
-                    elements.adminMediaEmpty.querySelector('p').innerText = isTrashTab
-                        ? 'Tidak ada foto yang dihapus oleh pengunjung. Semua media aman.'
-                        : 'Belum ada foto aktif yang dibuat oleh pengunjung.';
+                        : 'Belum Ada Foto';
+                    elements.adminMediaEmpty.querySelector('p').innerText = state.adminSelectedUserFilter !== 'all'
+                        ? 'Tidak ada foto untuk pengunjung yang dipilih pada tab ini.'
+                        : (isTrashTab ? 'Tidak ada foto yang dihapus oleh pengunjung. Semua media aman.' : 'Belum ada foto aktif yang dibuat oleh pengunjung.');
                 }
                 return;
             }
@@ -3776,15 +4154,14 @@
             elements.adminMediaGrid.innerHTML = '';
 
             targetPhotos.forEach(photo => {
-                const card = createAdminPhotoCard(photo);
+                const card = createAdminPhotoCard(photo, userStatsMap);
                 elements.adminMediaGrid.appendChild(card);
             });
         } catch (err) {
             const allPhotos = await PhotoStorage.getAll();
             const activeList = allPhotos.filter(p => !p.deleted);
             const deletedList = allPhotos.filter(p => p.deleted);
-            const isTrashTab = (state.adminActiveTab === 'trash');
-            const targetPhotos = isTrashTab ? deletedList : activeList;
+            const tabPhotos = isTrashTab ? deletedList : activeList;
 
             if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = allPhotos.length;
             if (elements.statActivePhotos) elements.statActivePhotos.innerText = activeList.length;
@@ -3792,8 +4169,12 @@
             if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = deletedList.length;
             if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = activeList.length;
 
-            if (elements.adminTrashNotice) {
-                elements.adminTrashNotice.style.display = isTrashTab ? 'block' : 'none';
+            const userStatsMap = computeUserStats(allPhotos);
+            renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab);
+
+            let targetPhotos = tabPhotos;
+            if (state.adminSelectedUserFilter && state.adminSelectedUserFilter !== 'all') {
+                targetPhotos = tabPhotos.filter(p => (p.userId || 'user_guest') === state.adminSelectedUserFilter);
             }
 
             if (!targetPhotos || targetPhotos.length === 0) {
@@ -3802,10 +4183,10 @@
                     elements.adminMediaEmpty.style.display = 'block';
                     elements.adminMediaEmpty.querySelector('h3').innerText = isTrashTab
                         ? 'Keranjang Sampah Kosong'
-                        : 'Belum Ada Foto Aktif';
-                    elements.adminMediaEmpty.querySelector('p').innerText = isTrashTab
-                        ? 'Tidak ada foto yang dihapus. Semua media aman.'
-                        : 'Belum ada foto aktif yang dibuat oleh pengunjung.';
+                        : 'Belum Ada Foto';
+                    elements.adminMediaEmpty.querySelector('p').innerText = state.adminSelectedUserFilter !== 'all'
+                        ? 'Tidak ada foto untuk pengunjung yang dipilih pada tab ini.'
+                        : (isTrashTab ? 'Tidak ada foto yang dihapus. Semua media aman.' : 'Belum ada foto aktif yang dibuat oleh pengunjung.');
                 }
                 return;
             }
@@ -3815,25 +4196,57 @@
             elements.adminMediaGrid.innerHTML = '';
 
             targetPhotos.forEach(photo => {
-                const card = createAdminPhotoCard(photo);
+                const card = createAdminPhotoCard(photo, userStatsMap);
                 elements.adminMediaGrid.appendChild(card);
             });
         }
     }
 
-    function createAdminPhotoCard(photo) {
+    function createAdminPhotoCard(photo, userStatsMap) {
         const card = document.createElement('div');
         card.className = 'admin-media-card' + (photo.deleted ? ' is-deleted' : '');
 
         const theme = PhotoFrames.getTheme(photo.themeId);
         const themeName = escapeHtml(theme ? theme.name : (photo.themeId || 'PhotoArt'));
         const safeId = escapeHtml(photo.id);
-        const safeUserId = escapeHtml(photo.userId || 'User');
+        const uid = photo.userId || 'user_guest';
+        const userStats = (userStatsMap && userStatsMap[uid]) ? userStatsMap[uid] : null;
+
+        const userNameRaw = photo.userName || (userStats ? userStats.userName : '') || photo.header || ('Pengunjung #' + uid.slice(-6));
+        const safeUserName = escapeHtml(userNameRaw);
+        const safeUserIdShort = escapeHtml(uid.length > 16 ? uid.substring(0, 16) + '...' : uid);
+        const userActiveCount = userStats ? userStats.activeCount : (photo.deleted ? 0 : 1);
+        const userTotalCount = userStats ? userStats.totalCount : 1;
+        const safeDevice = escapeHtml(photo.userDevice || (userStats ? userStats.userDevice : '') || 'Ponsel/Browser');
         const createdDate = formatDateTime(photo.createdAt);
         const deletedDate = photo.deletedAt ? formatDateTime(photo.deletedAt) : '';
         const fileExt = (photo.url && photo.url.endsWith('.png')) ? 'png' : 'jpg';
 
+        const safeHeader = photo.header ? escapeHtml(photo.header) : '';
+        const safeSubtitle = photo.subtitle ? escapeHtml(photo.subtitle) : '';
+
         card.innerHTML = `
+            <!-- Header Identitas Pengunjung & Statistik Foto di Galeri -->
+            <div style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; padding: 10px 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                <div style="min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="font-size: 15px;">👤</span>
+                        <div style="font-size: 13px; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeUserName}">
+                            ${safeUserName}
+                        </div>
+                    </div>
+                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+                        <span style="font-family: monospace; background: #f1f5f9; padding: 1px 4px; border-radius: 4px;">${safeUserIdShort}</span>
+                        ${safeDevice ? ` &bull; <span style="color: #475569;">📱 ${safeDevice}</span>` : ''}
+                    </div>
+                </div>
+                <div style="flex-shrink: 0; text-align: right;">
+                    <span style="display: inline-block; font-size: 10px; font-weight: 800; color: #0284c7; background: #e0f2fe; padding: 3px 8px; border-radius: 999px; border: 1px solid #bae6fd;" title="Pengunjung ini memiliki total ${userActiveCount} foto aktif di galeri (dari ${userTotalCount} pemotretan)">
+                        🖼️ ${userActiveCount} Foto di Galeri
+                    </span>
+                </div>
+            </div>
+
             <div class="admin-media-thumb-box" title="Klik untuk memperbesar">
                 <img class="admin-media-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
                 <span class="admin-status-pill ${photo.deleted ? 'status-deleted' : 'status-active'}">
@@ -3843,16 +4256,17 @@
             <div class="admin-card-body">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                     <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);">ID: <strong>${safeId}</strong></span>
-                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">👤 ${safeUserId}</span>
+                    <span style="font-size: 11px; font-weight: 700; color: #0f172a;">${themeName}</span>
                 </div>
-                <div style="font-size: 13px; font-weight: 800; color: var(--text-pure);">${themeName}</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">📅 Dibuat: ${createdDate}</div>
+                ${safeHeader ? `<div style="font-size: 11px; font-weight: 700; color: #334155; margin-top: 3px;">💬 "${safeHeader}"</div>` : ''}
+                ${safeSubtitle ? `<div style="font-size: 10px; color: #64748b; margin-top: 1px;">📝 ${safeSubtitle}</div>` : ''}
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">📅 Dibuat: ${createdDate}</div>
                 ${photo.deleted ? `<div style="font-size: 10px; color: #dc2626; font-weight: 700; margin-top: 2px;">⚠️ Dihapus oleh User: ${deletedDate}</div>` : ''}
             </div>
             <div class="admin-card-actions">
                 ${photo.deleted ? `
                     <button type="button" class="btn-restore-media" data-action="restore">
-                        <span>🔄 Pulihkan Foto ke ${safeUserId}</span>
+                        <span>🔄 Pulihkan Foto ke ${safeUserName}</span>
                     </button>
                     <div class="admin-sub-actions">
                         <a href="${photo.url}" download="photoart_${safeId}.${fileExt}" class="btn-admin-small">
@@ -4051,6 +4465,7 @@
                     return;
                 }
                 state.capturedImages = [];
+                state.slotFilters = [];
                 state.stickers = [];
                 state.selectedStickerId = null;
                 state.currentSessionUploaded = false;
@@ -4077,10 +4492,13 @@
         }
 
         if (elements.nativeCameraInput) {
-            elements.nativeCameraInput.addEventListener('change', (e) => {
+            elements.nativeCameraInput.addEventListener('change', async (e) => {
                 if (e.target.files && e.target.files.length > 0) {
-                    handleNativeFiles(Array.from(e.target.files));
-                    e.target.value = '';
+                    const files = Array.from(e.target.files);
+                    await handleNativeFiles(files);
+                    try {
+                        e.target.value = '';
+                    } catch (err) {}
                 }
             });
         }
@@ -4088,22 +4506,87 @@
         // Penanganan Pilih dari Galeri HP (Multi-select Files)
         if (elements.btnNativeGallery && elements.nativeFileInput) {
             elements.btnNativeGallery.addEventListener('click', () => {
-                elements.nativeFileInput.click();
+                if (elements.btnNativeGallery.tagName !== 'LABEL') {
+                    elements.nativeFileInput.click();
+                }
+            });
+        }
+
+        if (elements.btnEditorPickGallery && elements.nativeFileInput) {
+            elements.btnEditorPickGallery.addEventListener('click', () => {
+                if (elements.btnEditorPickGallery.tagName !== 'LABEL') {
+                    elements.nativeFileInput.click();
+                }
             });
         }
 
         if (elements.nativeFileInput) {
-            elements.nativeFileInput.addEventListener('change', (e) => {
+            elements.nativeFileInput.addEventListener('change', async (e) => {
                 if (e.target.files && e.target.files.length > 0) {
-                    handleNativeFiles(Array.from(e.target.files));
-                    e.target.value = '';
+                    const files = Array.from(e.target.files);
+                    await handleNativeFiles(files);
+                    try {
+                        e.target.value = '';
+                    } catch (err) {}
                 }
             });
         }
 
         if (elements.btnProceedToEditor) {
             elements.btnProceedToEditor.addEventListener('click', () => {
+                const theme = PhotoFrames.getTheme(state.selectedThemeId);
+                const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
+                if (state.capturedImages.length > 0) {
+                    const lastPhoto = state.capturedImages[state.capturedImages.length - 1];
+                    const lastFilter = (state.slotFilters && state.slotFilters.length > 0) ? state.slotFilters[state.slotFilters.length - 1] : (state.selectedFilter || 'normal');
+                    while (state.capturedImages.length < layoutConfig.count) {
+                        state.capturedImages.push(lastPhoto);
+                        if (!state.slotFilters) state.slotFilters = [];
+                        state.slotFilters.push(lastFilter);
+                    }
+                }
                 showStep('editor');
+            });
+        }
+
+        // Modal Opsi Susunan Foto dari Galeri
+        if (elements.btnGalleryFillAll) {
+            elements.btnGalleryFillAll.addEventListener('click', () => {
+                if (elements.modalGalleryFill) elements.modalGalleryFill.classList.remove('show');
+                const theme = PhotoFrames.getTheme(state.selectedThemeId);
+                const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
+                const maxSlots = layoutConfig.count;
+                if (state.capturedImages.length > 0) {
+                    const lastPhoto = state.capturedImages[state.capturedImages.length - 1];
+                    const lastFilter = (state.slotFilters && state.slotFilters.length > 0) ? state.slotFilters[state.slotFilters.length - 1] : (state.selectedFilter || 'normal');
+                    while (state.capturedImages.length < maxSlots) {
+                        state.capturedImages.push(lastPhoto);
+                        if (!state.slotFilters) state.slotFilters = [];
+                        state.slotFilters.push(lastFilter);
+                    }
+                }
+                updateShotThumbnails();
+                showToast('✨ Foto dipasang ke seluruh slot bingkai! Membuka editor studio...', 'success', 2000);
+                setTimeout(() => {
+                    showStep('editor');
+                }, 300);
+            });
+        }
+
+        if (elements.btnGalleryPickNext) {
+            elements.btnGalleryPickNext.addEventListener('click', () => {
+                if (elements.modalGalleryFill) elements.modalGalleryFill.classList.remove('show');
+                if (elements.nativeFileInput) {
+                    elements.nativeFileInput.click();
+                }
+            });
+        }
+
+        if (elements.modalGalleryFill) {
+            elements.modalGalleryFill.addEventListener('click', (e) => {
+                if (e.target === elements.modalGalleryFill) {
+                    elements.modalGalleryFill.classList.remove('show');
+                }
             });
         }
 
@@ -4111,6 +4594,7 @@
             elements.btnRetakeAll.addEventListener('click', () => {
                 if (confirm('Ulangi sesi foto dari awal? Foto saat ini akan dihapus.')) {
                     state.capturedImages = [];
+                    state.slotFilters = [];
                     state.stickers = [];
                     state.selectedStickerId = null;
                     state.currentSessionUploaded = false;
@@ -4351,6 +4835,7 @@
         if (elements.btnGalleryNewSession) {
             elements.btnGalleryNewSession.addEventListener('click', () => {
                 state.capturedImages = [];
+                state.slotFilters = [];
                 state.stickers = [];
                 state.selectedStickerId = null;
                 state.currentSessionUploaded = false;
@@ -4436,6 +4921,42 @@
         setupCurationFilterBtn(elements.btnFilterFramesAll, 'all');
         setupCurationFilterBtn(elements.btnFilterFramesPub, 'published');
         setupCurationFilterBtn(elements.btnFilterFramesPriv, 'draft');
+
+        // Visitor Name inputs sync
+        const updateUserNameSync = (val) => {
+            state.userName = val;
+            try {
+                localStorage.setItem('photoart_user_name', val);
+            } catch (e) {}
+            if (elements.inputSetupUserName && elements.inputSetupUserName.value !== val) {
+                elements.inputSetupUserName.value = val;
+            }
+            if (elements.inputUserName && elements.inputUserName.value !== val) {
+                elements.inputUserName.value = val;
+            }
+        };
+
+        if (elements.inputSetupUserName) {
+            elements.inputSetupUserName.value = state.userName || '';
+            elements.inputSetupUserName.addEventListener('input', (e) => {
+                updateUserNameSync(e.target.value.trim());
+            });
+        }
+
+        if (elements.inputUserName) {
+            elements.inputUserName.value = state.userName || '';
+            elements.inputUserName.addEventListener('input', (e) => {
+                updateUserNameSync(e.target.value.trim());
+            });
+        }
+
+        // Admin User Filter Dropdown change listener
+        if (elements.selectAdminUserFilter) {
+            elements.selectAdminUserFilter.addEventListener('change', (e) => {
+                state.adminSelectedUserFilter = e.target.value;
+                loadAdminMedia();
+            });
+        }
 
         // Lightbox Modal Controls
         if (elements.btnCloseLightbox) {

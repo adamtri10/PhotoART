@@ -2256,6 +2256,56 @@ main.app-main {
     max-width: 80px;
 }
 
+/* Editor Slot Filter Tabs */
+.editor-slot-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.editor-slot-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1.5px solid #cbd5e1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.editor-slot-tab-btn:hover {
+    border-color: #000000;
+    background: #f8fafc;
+}
+
+.editor-slot-tab-btn.active {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.editor-slot-tab-btn .slot-filter-badge {
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.editor-slot-tab-btn.active .slot-filter-badge {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
 /* Responsive Grid for Post-Capture Filters */
 .editor-filters-grid,
 #editor-filters-container {
@@ -3249,13 +3299,13 @@ main.app-main {
 
 .admin-stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .admin-stats-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
 }
@@ -3265,6 +3315,45 @@ main.app-main {
         grid-template-columns: 1fr;
         gap: 6px;
     }
+}
+
+.admin-user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.admin-user-chip:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.admin-user-chip.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+.admin-user-chip .chip-count {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.admin-user-chip.active .chip-count {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .stat-card {
@@ -4014,7 +4103,7 @@ main.app-main {
     }
 
     .admin-stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
 
