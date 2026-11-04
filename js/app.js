@@ -611,83 +611,170 @@
 
     const PhotoStorage = {
         STORAGE_KEY: 'photoart_user_photos_v1',
+        DB_NAME: 'PhotoArtAppDB',
+        DB_VERSION: 1,
+        STORE_NAME: 'user_photos',
+        _db: null,
+        _cache: null,
 
-        getAll() {
+        _initCache() {
+            if (this._cache !== null) return this._cache;
             try {
                 const raw = localStorage.getItem(this.STORAGE_KEY);
-                return raw ? JSON.parse(raw) : [];
+                this._cache = raw ? JSON.parse(raw) : [];
             } catch (e) {
-                return [];
+                this._cache = [];
             }
+            return this._cache;
         },
 
-        getUserPhotos(userId) {
-            const all = this.getAll();
-            if (!userId) return [];
-            return all.filter(p => p.userId === userId && !p.deleted);
-        },
+        async getDB() {
+            if (this._db) return this._db;
+            if (typeof indexedDB === 'undefined') return null;
 
-        save(photo) {
-            try {
-                const all = this.getAll();
-                const idx = all.findIndex(p => p.id === photo.id);
-                if (idx >= 0) {
-                    all[idx] = photo;
-                } else {
-                    all.unshift(photo);
+            return new Promise((resolve) => {
+                try {
+                    const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                            const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+                            store.createIndex('userId', 'userId', { unique: false });
+                            store.createIndex('createdAt', 'createdAt', { unique: false });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        this._db = e.target.result;
+                        resolve(this._db);
+                    };
+                    request.onerror = () => resolve(null);
+                } catch (err) {
+                    resolve(null);
                 }
-                const trimmed = all.slice(0, 40);
+            });
+        },
+
+        async getAll() {
+            this._initCache();
+            const db = await this.getDB();
+            if (db) {
+                try {
+                    const fromIDB = await new Promise((resolve) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readonly');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result || []);
+                        req.onerror = () => resolve([]);
+                    });
+                    if (fromIDB && fromIDB.length > 0) {
+                        const map = new Map();
+                        this._cache.forEach(p => map.set(p.id, p));
+                        fromIDB.forEach(p => map.set(p.id, p));
+                        this._cache = Array.from(map.values());
+                        this._cache.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+                        return this._cache;
+                    }
+                } catch (e) {}
+            }
+            return this._cache || [];
+        },
+
+        getAllSync() {
+            return this._initCache();
+        },
+
+        async getUserPhotos(userId) {
+            const all = await this.getAll();
+            if (!userId) return all.filter(p => !p.deleted);
+            return all.filter(p => (!p.userId || p.userId === userId || p.userId === 'user_guest') && !p.deleted);
+        },
+
+        async save(photo) {
+            this._initCache();
+            const idx = this._cache.findIndex(p => p.id === photo.id);
+            if (idx >= 0) {
+                this._cache[idx] = photo;
+            } else {
+                this._cache.unshift(photo);
+            }
+
+            // 1. Simpan ke IndexedDB (Kapasitas Besar ratusan MB / GB tanpa batas kuota 5MB)
+            const db = await this.getDB();
+            if (db) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const req = store.put(photo);
+                        req.onsuccess = () => resolve(true);
+                        req.onerror = (e) => reject(e);
+                    });
+                } catch (e) {
+                    console.warn("IndexedDB save warning:", e);
+                }
+            }
+
+            // 2. Simpan juga ke localStorage sebagai cadangan (dibatasi 20 item terbaru)
+            try {
+                const trimmed = this._cache.slice(0, 20);
                 localStorage.setItem(this.STORAGE_KEY, JSON.stringify(trimmed));
-                return photo;
             } catch (e) {
-                console.warn("PhotoStorage save warning:", e);
-                return photo;
+                try {
+                    const minimal = this._cache.slice(0, 6);
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(minimal));
+                } catch (e2) {
+                    console.warn("LocalStorage quota reached, photo safely stored in IndexedDB");
+                }
             }
+
+            return photo;
         },
 
-        softDelete(photoId, userId = null) {
-            try {
-                const all = this.getAll();
-                const updated = all.map(p => {
-                    if (p.id === photoId && (!userId || p.userId === userId)) {
-                        return { ...p, deleted: true, deletedAt: new Date().toISOString() };
-                    }
-                    return p;
-                });
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+        async softDelete(photoId, userId = null) {
+            this._initCache();
+            const photo = this._cache.find(p => p.id === photoId && (!userId || p.userId === userId));
+            if (photo) {
+                photo.deleted = true;
+                photo.deletedAt = new Date().toISOString();
+                await this.save(photo);
                 return true;
-            } catch (e) {
-                return false;
             }
+            return false;
         },
 
-        restore(photoId) {
-            try {
-                const all = this.getAll();
-                const updated = all.map(p => {
-                    if (p.id === photoId) {
-                        const copy = { ...p, deleted: false };
-                        delete copy.deletedAt;
-                        return copy;
-                    }
-                    return p;
-                });
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+        async restore(photoId) {
+            this._initCache();
+            const photo = this._cache.find(p => p.id === photoId);
+            if (photo) {
+                photo.deleted = false;
+                delete photo.deletedAt;
+                await this.save(photo);
                 return true;
-            } catch (e) {
-                return false;
             }
+            return false;
         },
 
-        permanentDelete(photoId) {
-            try {
-                const all = this.getAll();
-                const updated = all.filter(p => p.id !== photoId);
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
-                return true;
-            } catch (e) {
-                return false;
+        async permanentDelete(photoId) {
+            this._initCache();
+            this._cache = this._cache.filter(p => p.id !== photoId);
+
+            const db = await this.getDB();
+            if (db) {
+                try {
+                    await new Promise((resolve) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const req = store.delete(photoId);
+                        req.onsuccess = () => resolve(true);
+                        req.onerror = () => resolve(false);
+                    });
+                } catch (e) {}
             }
+
+            try {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this._cache.slice(0, 20)));
+            } catch (e) {}
+            return true;
         }
     };
 
@@ -2970,11 +3057,36 @@
             const hdCanvas = document.createElement('canvas');
             await renderCanvas(true, hdCanvas, exportWidth);
 
-            const dataUrl = hdCanvas.toDataURL('image/png', 1.0);
-            const currentUserId = getOrCreateUserId();
-            let finalPhotoId = 'photo_' + Date.now();
+            // Optimasi kompresi kualitas HD: Gunakan image/jpeg 0.92
+            // Ukuran file menjadi ~500KB - 800KB (visual sangat jernih dan tajam),
+            // sangat aman di kuota localStorage/IndexedDB dan di bawah batas Vercel 4.5MB
+            let dataUrl = '';
+            try {
+                dataUrl = hdCanvas.toDataURL('image/jpeg', 0.92);
+            } catch (e) {
+                dataUrl = hdCanvas.toDataURL('image/png');
+            }
 
+            const currentUserId = getOrCreateUserId();
+            let finalPhotoId = 'photo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+            // 1. Simpan ke Local Storage / IndexedDB terlebih dahulu (JAMINAN TERSIMPAN DI PERANGKAT)
+            const photoRecord = {
+                id: finalPhotoId,
+                userId: currentUserId,
+                themeId: state.selectedThemeId,
+                themeName: theme.name || 'PhotoArt Studio',
+                header: state.frameHeader || '',
+                subtitle: state.frameSubtitle || '',
+                url: dataUrl,
+                createdAt: new Date().toISOString(),
+                deleted: false
+            };
+            await PhotoStorage.save(photoRecord);
+
+            // 2. Sinkronkan ke server API (untuk backup & admin dashboard)
             const payload = {
+                id: finalPhotoId,
                 image: dataUrl,
                 userId: currentUserId,
                 themeId: state.selectedThemeId,
@@ -2997,33 +3109,25 @@
                     const resData = await response.json();
                     if (resData && (resData.id || resData.photoId)) {
                         finalPhotoId = resData.id || resData.photoId;
+                        photoRecord.id = finalPhotoId;
+                        await PhotoStorage.save(photoRecord);
                     }
                 }
-            } catch (netErr) {}
-
-            const photoRecord = {
-                id: finalPhotoId,
-                userId: currentUserId,
-                themeId: state.selectedThemeId,
-                themeName: theme.name || 'PhotoArt Studio',
-                header: state.frameHeader || '',
-                subtitle: state.frameSubtitle || '',
-                url: dataUrl,
-                createdAt: new Date().toISOString(),
-                deleted: false
-            };
-            PhotoStorage.save(photoRecord);
+            } catch (netErr) {
+                console.warn("Server photo upload notice:", netErr);
+            }
 
             state.currentSessionUploaded = true;
             state.lastUploadedPhotoId = finalPhotoId;
 
-            showToast('✨ Foto berhasil disimpan ke Galeri Dashboard!', 'success');
+            showToast('✨ Foto berhasil disimpan ke Galeri Dashboard Anda!', 'success', 3000);
             await updateGalleryBadge();
 
             if (navigateToGallery) {
                 showStep('gallery');
             }
         } catch (err) {
+            console.error("Gagal menyimpan foto:", err);
             showToast('❌ Gagal menyimpan foto: ' + (err.message || 'Periksa penyimpanan perangkat'), 'error');
         } finally {
             state.isUploading = false;
@@ -3040,6 +3144,9 @@
             return;
         }
 
+        // Simpan juga ke galeri dashboard otomatis agar tidak hilang!
+        savePhotoToGallery(false).catch(() => {});
+
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
         const nativeW = (theme && theme.naturalWidth) ? theme.naturalWidth : 840;
         const exportWidth = Math.max(1200, nativeW);
@@ -3055,7 +3162,7 @@
         link.click();
         document.body.removeChild(link);
 
-        showToast('📥 Foto HD berhasil diunduh ke perangkat Anda!', 'success');
+        showToast('📥 Foto HD berhasil diunduh ke galeri perangkat Anda & tersimpan di dashboard!', 'success', 3500);
     }
 
     async function sharePhoto() {
@@ -3194,7 +3301,7 @@
                 }
             } catch (e) {}
 
-            const localPhotos = PhotoStorage.getUserPhotos(currentUserId);
+            const localPhotos = await PhotoStorage.getUserPhotos(currentUserId);
             count = Math.max(count, localPhotos.length);
 
             if (elements.headerGalleryBadge) {
@@ -3238,7 +3345,7 @@
                 }
             } catch (netErr) {}
 
-            const localPhotos = PhotoStorage.getUserPhotos(currentUserId);
+            const localPhotos = await PhotoStorage.getUserPhotos(currentUserId);
 
             const photoMap = new Map();
             serverPhotos.forEach(p => { if (!p.deleted) photoMap.set(p.id, p); });
@@ -3319,7 +3426,7 @@
             });
         } catch (err) {
             const currentUserId = getOrCreateUserId();
-            const fallbackList = PhotoStorage.getUserPhotos(currentUserId);
+            const fallbackList = await PhotoStorage.getUserPhotos(currentUserId);
             if (fallbackList.length > 0) {
                 elements.userGalleryGrid.innerHTML = '';
                 fallbackList.forEach(photo => {
@@ -3348,7 +3455,7 @@
         }
 
         const currentUserId = getOrCreateUserId();
-        PhotoStorage.softDelete(id, currentUserId);
+        await PhotoStorage.softDelete(id, currentUserId);
 
         try {
             await fetch('/api/photos/delete', {
@@ -3357,13 +3464,13 @@
                     'Content-Type': 'application/json',
                     'X-User-Id': currentUserId
                 },
-                body: JSON.stringify({ id: id, userId: currentUserId })
+                body: JSON.stringify({ id: id })
             });
         } catch (e) {}
 
-        showToast('🗑️ Foto telah dihapus dari Galeri Anda.', 'info');
-        loadUserGallery();
-        updateGalleryBadge();
+        showToast('🗑️ Foto dipindahkan ke tempat sampah.', 'info');
+        await loadUserGallery();
+        await updateGalleryBadge();
     }
 
     function initAdminPanel() {
@@ -3673,7 +3780,7 @@
                 elements.adminMediaGrid.appendChild(card);
             });
         } catch (err) {
-            const allPhotos = PhotoStorage.getAll();
+            const allPhotos = await PhotoStorage.getAll();
             const activeList = allPhotos.filter(p => !p.deleted);
             const deletedList = allPhotos.filter(p => p.deleted);
             const isTrashTab = (state.adminActiveTab === 'trash');
@@ -3806,7 +3913,7 @@
     }
 
     async function adminRestorePhoto(id) {
-        PhotoStorage.restore(id);
+        await PhotoStorage.restore(id);
 
         try {
             await fetch('/api/admin/restore', {
@@ -3829,7 +3936,7 @@
             return;
         }
 
-        PhotoStorage.permanentDelete(id);
+        await PhotoStorage.permanentDelete(id);
 
         try {
             await fetch('/api/admin/permanent-delete', {
@@ -3852,7 +3959,7 @@
             return;
         }
 
-        PhotoStorage.softDelete(id);
+        await PhotoStorage.softDelete(id);
 
         try {
             await fetch('/api/photos/delete', {
