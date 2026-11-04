@@ -1809,7 +1809,58 @@
     }
 
     /**
-     * FUNGSI UTAMA YANG DIPERBAIKI: Tangani stream kamera depan / belakang dengan fleksibel
+     * Helper to classify video input devices into backs, fronts, and others
+     */
+    function classifyVideoDevices(devices) {
+        const backs = [];
+        const fronts = [];
+        const others = [];
+
+        (devices || []).forEach(d => {
+            const label = (d.label || '').toLowerCase();
+            const isFront = label.includes('front') || 
+                            label.includes('user') || 
+                            label.includes('selfie') || 
+                            label.includes('depan') || 
+                            label.includes('facing front') ||
+                            label.startsWith('camera 1') ||
+                            label.startsWith('camera2 1') ||
+                            label.includes('facing: front');
+
+            const isBack = label.includes('back') || 
+                           label.includes('rear') || 
+                           label.includes('environment') || 
+                           label.includes('belakang') || 
+                           label.includes('facing back') ||
+                           label.startsWith('camera 0') ||
+                           label.startsWith('camera2 0') ||
+                           label.includes('facing: back');
+
+            if (isBack && !isFront) {
+                backs.push(d);
+            } else if (isFront && !isBack) {
+                fronts.push(d);
+            } else {
+                others.push(d);
+            }
+        });
+
+        // Filter and prioritize main rear camera (exclude auxiliary ultra-wide, macro, depth, tof)
+        backs.sort((a, b) => {
+            const la = (a.label || '').toLowerCase();
+            const lb = (b.label || '').toLowerCase();
+            const aAux = (la.includes('ultra') && la.includes('wide')) || la.includes('macro') || la.includes('depth') || la.includes('tof') || la.includes('tele');
+            const bAux = (lb.includes('ultra') && lb.includes('wide')) || lb.includes('macro') || lb.includes('depth') || lb.includes('tof') || lb.includes('tele');
+            if (aAux && !bAux) return 1;
+            if (!aAux && bAux) return -1;
+            return 0;
+        });
+
+        return { backs, fronts, others };
+    }
+
+    /**
+     * FUNGSI UTAMA: Tangani stream kamera depan / belakang dengan standar WebRTC mobile yang andal
      */
     async function acquireCameraStream(targetMode, previousDeviceId = null) {
         let stream = null;
@@ -1826,216 +1877,168 @@
         }
 
         const prevId = previousDeviceId || (state.cameraStream && state.cameraStream.getVideoTracks()[0]?.getSettings?.()?.deviceId) || state.currentDeviceId || null;
+        const { backs, fronts, others } = classifyVideoDevices(videoDevices);
 
         if (targetMode === 'environment') {
-            // Filter perangkat kamera belakang
-            const backDevices = videoDevices.filter(d => {
-                const lbl = (d.label || '').toLowerCase();
-                if (lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front')) {
-                    return false;
-                }
-                if (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back')) {
-                    return true;
-                }
-                if (lbl.includes('camera2 0') || lbl.includes('camera 0')) {
-                    return true;
-                }
-                return false;
-            });
-
-            // Prioritaskan sensor belakang utama (bukan macro, depth, tof, ir)
-            let chosenBackDev = backDevices.find(d => {
-                const lbl = (d.label || '').toLowerCase();
-                return !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
-            }) || (backDevices.length > 0 ? backDevices[0] : null);
-
-            // Jika label belum terbaca tapi ada beberapa kamera dan kita tahu ID kamera depan sebelumnya
-            if (!chosenBackDev && videoDevices.length > 1 && prevId) {
-                chosenBackDev = videoDevices.find(d => d.deviceId !== prevId && !d.label.toLowerCase().includes('depth'));
-            }
-
-            // 1. Coba deviceId spesifik kamera belakang
-            if (chosenBackDev && chosenBackDev.deviceId) {
+            // Target: Kamera Belakang (Environment)
+            
+            // 1. Jika ada kamera belakang yang terdeteksi secara eksplisit dari enumerateDevices
+            if (backs.length > 0 && backs[0].deviceId) {
+                const targetDevId = backs[0].deviceId;
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            deviceId: { exact: chosenBackDev.deviceId },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                            deviceId: { exact: targetDevId },
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
                         }
                     });
-                } catch (errA1) {
+                } catch (e1) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { deviceId: { exact: chosenBackDev.deviceId } }
+                            video: { deviceId: targetDevId }
                         });
-                    } catch (errA1b) {
-                        lastError = errA1b;
+                    } catch (e1b) {
+                        lastError = e1b;
                     }
                 }
             }
 
-            // 2. Coba facingMode exact environment
+            // 2. Standar WebRTC Mobile: facingMode { ideal: 'environment' } (Paling kompatibel di Android & iOS)
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { exact: 'environment' },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                            facingMode: { ideal: 'environment' }
                         }
                     });
-                } catch (errA2) {
+                } catch (e2) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { facingMode: { exact: 'environment' } }
+                            video: {
+                                facingMode: 'environment'
+                            }
                         });
-                    } catch (errA2b) {
-                        lastError = errA2b;
+                    } catch (e2b) {
+                        try {
+                            // Untuk iOS Safari strict
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                audio: false,
+                                video: {
+                                    facingMode: { exact: 'environment' }
+                                }
+                            });
+                        } catch (e2c) {
+                            lastError = e2c;
+                        }
                     }
                 }
             }
 
-            // 3. Coba perangkat manapun yang berbeda dari ID sebelumnya
+            // 3. Jika belum dapat dan ada perangkat lain yang bukan kamera depan sebelumnya
             if (!stream && videoDevices.length > 1) {
                 const altDev = videoDevices.find(d => {
                     const lbl = (d.label || '').toLowerCase();
                     return (!prevId || d.deviceId !== prevId) &&
-                           !lbl.includes('front') && !lbl.includes('selfie') && !lbl.includes('user') && !lbl.includes('depth');
-                });
+                           !lbl.includes('front') && !lbl.includes('selfie') && !lbl.includes('user') && !lbl.includes('depan') && !lbl.includes('depth');
+                }) || videoDevices.find(d => !prevId || d.deviceId !== prevId);
+
                 if (altDev && altDev.deviceId) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { deviceId: { exact: altDev.deviceId } }
+                            video: { deviceId: altDev.deviceId }
                         });
-                    } catch (errA3) {
-                        lastError = errA3;
+                    } catch (e3) {
+                        lastError = e3;
                     }
-                }
-            }
-
-            // 4. Coba facingMode environment umum dengan verifikasi agar tidak tertipu kamera depan
-            if (!stream) {
-                try {
-                    const candidate = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-                    const cTrack = candidate.getVideoTracks()[0];
-                    const cSettings = cTrack ? (cTrack.getSettings ? cTrack.getSettings() : {}) : {};
-                    const cLabel = (cTrack && cTrack.label ? cTrack.label : '').toLowerCase();
-
-                    const isActuallyFront = (cSettings.facingMode === 'user') ||
-                                            cLabel.includes('front') || cLabel.includes('selfie') || cLabel.includes('user') || cLabel.includes('depan') ||
-                                            (prevId && cSettings.deviceId === prevId);
-
-                    if (isActuallyFront && videoDevices.length > 1) {
-                        candidate.getTracks().forEach(t => t.stop());
-                        const otherDev = videoDevices.find(d => d.deviceId !== cSettings.deviceId && !d.label.toLowerCase().includes('depth'));
-                        if (otherDev) {
-                            try {
-                                stream = await navigator.mediaDevices.getUserMedia({
-                                    audio: false,
-                                    video: { deviceId: { exact: otherDev.deviceId } }
-                                });
-                            } catch (errA4b) {}
-                        }
-                    } else {
-                        stream = candidate;
-                    }
-                } catch (errA4) {
-                    lastError = errA4;
                 }
             }
         } else {
-            // Target: Kamera Depan (User)
-            const frontDevices = videoDevices.filter(d => {
-                const lbl = (d.label || '').toLowerCase();
-                if (lbl.includes('back') || lbl.includes('rear') || lbl.includes('belakang') || lbl.includes('facing back')) {
-                    return false;
-                }
-                if (lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front')) {
-                    return true;
-                }
-                if (lbl.includes('camera2 1') || lbl.includes('camera 1')) {
-                    return true;
-                }
-                return false;
-            });
+            // Target: Kamera Depan (User / Selfie)
 
-            let chosenFrontDev = frontDevices.find(d => !d.label.toLowerCase().includes('depth')) || (frontDevices.length > 0 ? frontDevices[0] : null);
-
-            if (!chosenFrontDev && videoDevices.length > 1 && prevId) {
-                chosenFrontDev = videoDevices.find(d => d.deviceId !== prevId && !d.label.toLowerCase().includes('depth'));
-            }
-
-            // 1. Coba deviceId spesifik kamera depan
-            if (chosenFrontDev && chosenFrontDev.deviceId) {
+            // 1. Jika ada kamera depan yang terdeteksi secara eksplisit dari enumerateDevices
+            if (fronts.length > 0 && fronts[0].deviceId) {
+                const targetDevId = fronts[0].deviceId;
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            deviceId: { exact: chosenFrontDev.deviceId },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                            deviceId: { exact: targetDevId },
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
                         }
                     });
-                } catch (errB1) {
+                } catch (e1) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { deviceId: { exact: chosenFrontDev.deviceId } }
+                            video: { deviceId: targetDevId }
                         });
-                    } catch (errB1b) {}
+                    } catch (e1b) {
+                        lastError = e1b;
+                    }
                 }
             }
 
-            // 2. Coba facingMode exact user
+            // 2. Standar WebRTC: facingMode { ideal: 'user' }
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { exact: 'user' },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                            facingMode: { ideal: 'user' }
                         }
                     });
-                } catch (errB2) {
+                } catch (e2) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { facingMode: { exact: 'user' } }
+                            video: {
+                                facingMode: 'user'
+                            }
                         });
-                    } catch (errB2b) {}
+                    } catch (e2b) {
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                audio: false,
+                                video: {
+                                    facingMode: { exact: 'user' }
+                                }
+                            });
+                        } catch (e2c) {
+                            lastError = e2c;
+                        }
+                    }
                 }
             }
 
-            // 3. Coba facingMode ideal user
-            if (!stream) {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            facingMode: 'user',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-                } catch (errB3) {}
+            // 3. Alternatif device bukan ID sebelumnya
+            if (!stream && videoDevices.length > 1) {
+                const altDev = videoDevices.find(d => {
+                    const lbl = (d.label || '').toLowerCase();
+                    return (!prevId || d.deviceId !== prevId) &&
+                           !lbl.includes('back') && !lbl.includes('rear') && !lbl.includes('belakang');
+                }) || videoDevices.find(d => !prevId || d.deviceId !== prevId);
+
+                if (altDev && altDev.deviceId) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: { deviceId: altDev.deviceId }
+                        });
+                    } catch (e3) {
+                        lastError = e3;
+                    }
+                }
             }
         }
 
-        // Ultimate fallback jika belum dapat
+        // Ultimate fallback jika belum dapat perangkat spesifik
         if (!stream) {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
@@ -2072,8 +2075,8 @@
                 state.cameraStream = null;
             }
 
-            // Jeda 200ms agar hardware sensor kamera pada ponsel Android/iOS terlepas sempurna
-            await new Promise(r => setTimeout(r, 200));
+            // Jeda 250ms agar hardware sensor kamera pada ponsel Android/iOS terlepas sempurna di tingkat HAL
+            await new Promise(r => setTimeout(r, 250));
 
             const stream = await acquireCameraStream(requestedMode, previousDeviceId);
             if (!stream) {
@@ -2089,16 +2092,19 @@
             }
             const trackLabel = (track && track.label ? track.label : '').toLowerCase();
 
-            // Tentukan secara akurat apakah kamera yang aktif adalah belakang atau depan
+            // Tentukan secara akurat apakah kamera yang aktif adalah belakang atau depan:
+            // Prioritaskan nama track label jika ada, lalu requestedMode. Hindari bug Chromium Android crbug.com/978809
+            // di mana settings.facingMode melaporkan 'user' meskipun kamera belakang aktif.
             let isRear = false;
-            if (settings.facingMode === 'environment') {
+            if (trackLabel.includes('back') || trackLabel.includes('rear') || trackLabel.includes('environment') || trackLabel.includes('belakang') || trackLabel.includes('facing back') || trackLabel.startsWith('camera 0') || trackLabel.startsWith('camera2 0')) {
+                isRear = true;
+            } else if (trackLabel.includes('front') || trackLabel.includes('user') || trackLabel.includes('selfie') || trackLabel.includes('depan') || trackLabel.includes('facing front') || trackLabel.startsWith('camera 1') || trackLabel.startsWith('camera2 1')) {
+                isRear = false;
+            } else if (settings.facingMode === 'environment') {
                 isRear = true;
             } else if (settings.facingMode === 'user') {
-                isRear = false;
-            } else if (trackLabel.includes('back') || trackLabel.includes('rear') || trackLabel.includes('environment') || trackLabel.includes('belakang') || trackLabel.includes('facing back')) {
-                isRear = true;
-            } else if (trackLabel.includes('front') || trackLabel.includes('user') || trackLabel.includes('selfie') || trackLabel.includes('depan') || trackLabel.includes('facing front')) {
-                isRear = false;
+                // Jangan batalkan environment jika requestedMode memang environment dan label tidak menyebut front
+                isRear = (requestedMode === 'environment');
             } else {
                 isRear = (requestedMode === 'environment');
             }
@@ -2152,6 +2158,24 @@
             console.warn("Kamera tidak dapat diakses langsung via getUserMedia:", err);
             if (elements.cameraNotice) elements.cameraNotice.style.display = 'block';
             showToast('⚠️ Gagal mengakses kamera: ' + (err.message || 'Periksa izin kamera browser'), 'error');
+
+            // Pemulihan otomatis jika mode belakang gagal (misal di laptop tanpa kamera belakang): kembalikan ke kamera depan
+            if (requestedMode === 'environment') {
+                try {
+                    const fallbackStream = await acquireCameraStream('user');
+                    if (fallbackStream) {
+                        state.cameraStream = fallbackStream;
+                        state.facingMode = 'user';
+                        state.isMirrored = true;
+                        if (elements.video) {
+                            elements.video.srcObject = fallbackStream;
+                            await elements.video.play().catch(() => {});
+                        }
+                        updateMirrorStyle();
+                        updateCameraControlsUI();
+                    }
+                } catch(recErr) {}
+            }
         }
     }
 
