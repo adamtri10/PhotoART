@@ -292,12 +292,16 @@ class handler(BaseHTTPRequestHandler):
             active = [p for p in photos if not p.get("deleted", False)]
             deleted = [p for p in photos if p.get("deleted", False)]
             frames = get_all_frames()
+            unique_users = len({p.get("userId") for p in photos if p.get("userId")})
+            active_users = len({p.get("userId") for p in active if p.get("userId")})
             self._send_json(200, {
                 "success": True,
                 "totalPhotos": len(photos),
                 "activeCount": len(active),
                 "trashCount": len(deleted),
-                "totalFrames": len(frames)
+                "totalFrames": len(frames),
+                "uniqueUsers": unique_users,
+                "activeUsers": active_users
             })
             return
 
@@ -309,12 +313,16 @@ class handler(BaseHTTPRequestHandler):
             photos = get_photos_db()
             active = [p for p in photos if not p.get("deleted", False)]
             deleted = [p for p in photos if p.get("deleted", False)]
+            unique_users = len({p.get("userId") for p in photos if p.get("userId")})
+            active_users = len({p.get("userId") for p in active if p.get("userId")})
             self._send_json(200, {
                 "success": True,
                 "stats": {
                     "total": len(photos),
                     "active": len(active),
-                    "deleted": len(deleted)
+                    "deleted": len(deleted),
+                    "uniqueUsers": unique_users,
+                    "activeUsers": active_users
                 },
                 "photos": photos,
                 "activePhotos": active,
@@ -348,6 +356,8 @@ class handler(BaseHTTPRequestHandler):
             new_photo = {
                 "id": photo_id,
                 "userId": user_id,
+                "userName": body.get("userName", ""),
+                "userDevice": body.get("userDevice", ""),
                 "themeId": body.get("themeId", "strip_3"),
                 "themeName": body.get("themeName", "PhotoArt Studio"),
                 "header": body.get("header", ""),

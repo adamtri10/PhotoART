@@ -192,6 +192,16 @@
                     </button>
                 </div>
 
+                <!-- Visitor Identity (Nama Pengunjung) -->
+                <div class="setup-name-box" style="margin-top: 14px; margin-bottom: 14px; padding: 12px 16px; background: rgba(255,255,255,0.75); border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 16px;">👤</span>
+                        <label for="input-setup-user-name" style="font-size: 13px; font-weight: 800; color: var(--text-pure); margin-bottom: 0;">Nama Kamu (Opsional):</label>
+                    </div>
+                    <input id="input-setup-user-name" type="text" class="form-input" placeholder="Contoh: Sarah / Budi & Teman-teman" maxlength="40" style="font-size: 13px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-medium); width: 100%;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Nama ini akan dicantumkan pada foto agar tersimpan rapi di galeri & mudah dikenali.</div>
+                </div>
+
                 <!-- Start Booth CTA -->
                 <button id="btn-start-booth" class="btn-primary" type="button" style="padding: 16px;">
                     <span>Masuk ke Ruang Foto</span>
@@ -308,13 +318,13 @@
                             <span>📸</span> <span>Buka Kamera HP Langsung</span>
                         </button>
                         <!-- Native camera input: direct hardware camera capture -->
-                        <input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display: none;">
+                        <input id="native-camera-input" type="file" accept="image/*" capture="environment" style="position: absolute; top: -9999px; left: -9999px; opacity: 0; width: 1px; height: 1px; pointer-events: none;">
 
-                        <button id="btn-native-gallery" class="btn-native-file" type="button" title="Pilih foto yang tersimpan di galeri ponsel" style="background: rgba(255, 255, 255, 0.06);">
+                        <label for="native-file-input" id="btn-native-gallery" class="btn-native-file" title="Pilih foto yang tersimpan di galeri ponsel" style="background: rgba(255, 255, 255, 0.06); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
                             <span>📁</span> <span>Pilih dari Galeri</span>
-                        </button>
+                        </label>
                         <!-- Native file input: multi-select gallery picker -->
-                        <input id="native-file-input" type="file" accept="image/*" multiple style="display: none;">
+                        <input id="native-file-input" type="file" accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif" multiple style="position: absolute; top: -9999px; left: -9999px; opacity: 0; width: 1px; height: 1px; pointer-events: none;">
                     </div>
 
                     <button id="btn-proceed-to-editor" class="btn-primary" type="button" style="display: none; margin-top: 6px;">
@@ -362,6 +372,9 @@
                             <button id="btn-download-direct" class="btn-secondary btn-quick-item" type="button" title="Unduh Foto HD Langsung">
                                 <span>Unduh Foto</span>
                             </button>
+                            <label for="native-file-input" id="btn-editor-pick-gallery" class="btn-secondary btn-quick-item" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Ganti foto ini dengan foto dari galeri ponsel">
+                                <span>📁 Ganti Foto</span>
+                            </label>
                             <button id="btn-share-final" class="btn-secondary btn-quick-item" type="button" title="Bagikan Foto">
                                 <span>Bagikan</span>
                             </button>
@@ -401,6 +414,13 @@
 
                         <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 16px 0;">
 
+                        <!-- Visitor Name / Identitas Pengunjung -->
+                        <div class="form-group">
+                            <label class="form-label" for="input-user-name">Nama Pengunjung / Pemilik Foto</label>
+                            <input id="input-user-name" class="form-input" type="text" placeholder="Contoh: Sarah / Budi & Teman-teman" maxlength="40">
+                            <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">Nama ini akan disimpan bersama foto di galeri studio & dashboard admin.</span>
+                        </div>
+
                         <!-- Custom Text on Frame -->
                         <div class="form-group">
                             <label class="form-label" for="input-header">Judul / Teks Atas Bingkai</label>
@@ -418,7 +438,16 @@
                         <h2 class="card-title">
                             <span>🌈</span> Filter Warna Foto
                         </h2>
-                        <p class="card-subtitle">Pilih nuansa warna foto yang Anda inginkan (ketuk kartu untuk melihat perubahan):</p>
+                        <p class="card-subtitle">Pilih nuansa warna foto yang Anda inginkan. Anda dapat mengatur filter berbeda untuk setiap pose foto:</p>
+                        
+                        <!-- Slot Selector: Pilih foto mana yang ingin diatur filternya -->
+                        <div class="editor-slot-selector-box" style="margin-bottom: 12px; padding: 10px 12px; background: rgba(0,0,0,0.03); border-radius: 12px; border: 1px solid var(--border-light);">
+                            <div style="font-size: 11px; font-weight: 800; color: var(--text-pure); margin-bottom: 8px;">Pilih Pose Foto yang Ingin Diatur:</div>
+                            <div id="editor-slot-filter-tabs" class="editor-slot-tabs" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
+                                <!-- Populated dynamically: [Semua Foto] [Pose 1] [Pose 2] [Pose 3] -->
+                            </div>
+                        </div>
+
                         <div id="editor-filters-container" class="editor-filters-grid">
                             <!-- Populated dynamically via js/app.js with realistic photo icons -->
                         </div>
@@ -554,6 +583,25 @@
         </section>
 
     </main>
+
+    <!-- ================= MODAL: OPSI SUSUNAN FOTO DARI GALERI ================= -->
+    <div id="modal-gallery-fill" class="modal-backdrop">
+        <div class="modal-card" style="max-width: 380px; text-align: center; padding: 24px 20px; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);">
+            <div style="font-size: 38px; margin-bottom: 8px;">🖼️</div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Foto Galeri Berhasil Dipilih</h3>
+            <p id="gallery-fill-desc" style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 18px;">
+                Bingkai ini membutuhkan <strong id="gallery-fill-slot-count">3 foto</strong>. Anda telah memilih <strong id="gallery-fill-chosen-count">1 foto</strong>. Mau pasang foto ini ke semua slot bingkai?
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="btn-gallery-fill-all" type="button" class="btn-primary" style="padding: 13px; font-weight: 800; font-size: 13px;">
+                    <span>✨ Pasang ke Semua Slot & Lanjut</span>
+                </button>
+                <button id="btn-gallery-pick-next" type="button" class="btn-secondary" style="padding: 12px; font-weight: 700; font-size: 12px;">
+                    <span>📁 Pilih Foto Berikutnya dari Galeri</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ================= MODAL: LIGHTBOX FULL RESOLUTION VIEWER ================= -->
     <div id="modal-lightbox" class="modal-backdrop">

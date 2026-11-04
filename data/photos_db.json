@@ -152,5 +152,19 @@
     "fileSize": 236586,
     "deleted": true,
     "deletedAt": "2026-11-04T08:51:48Z"
+  },
+  {
+    "id": "pa_1793788227_61fd0b",
+    "userId": "user_11nsy2",
+    "filename": "photo_pa_1793788227_61fd0b.jpg",
+    "url": "data/photos/photo_pa_1793788227_61fd0b.jpg",
+    "themeId": "asset_frame_strip_3",
+    "themeName": "Classic Studio (3 Pose)",
+    "header": "PHOTOART",
+    "subtitle": "STUDIO MEMORIES",
+    "createdAt": "2026-11-04T10:30:27Z",
+    "fileSize": 270575,
+    "deleted": false,
+    "deletedAt": null
   }
 ]

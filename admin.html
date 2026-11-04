@@ -152,6 +152,10 @@
                         <span class="stat-num" id="stat-deleted-photos">0</span>
                         <span class="stat-label">Foto Terhapus (Sampah)</span>
                     </div>
+                    <div class="stat-card user-stat" style="border-left: 3px solid #0284c7;">
+                        <span class="stat-num" id="stat-total-users" style="color: #0284c7;">0</span>
+                        <span class="stat-label">Pengunjung di Galeri</span>
+                    </div>
                 </div>
 
                 <!-- Admin Tabs Navigation & Content -->
@@ -230,6 +234,28 @@
                     <div id="admin-photos-view" class="admin-tab-view" style="display: none;">
                         <div id="admin-trash-notice" class="admin-alert-banner">
                             <strong>Fitur Pemulihan Foto:</strong> Jika pengunjung tidak sengaja menghapus foto dari bilik mereka, klik <strong>"🔄 Pulihkan Foto ke User"</strong>. Foto akan langsung kembali tampil di galeri pengunjung secara *real-time*.
+                        </div>
+
+                        <!-- Filter & Info Pengunjung / User -->
+                        <div id="admin-user-filter-box" class="admin-user-filter-box" style="margin-bottom: 16px; padding: 14px 16px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">👤</span>
+                                    <div>
+                                        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">Filter Berdasarkan Pengunjung (User)</div>
+                                        <div id="admin-user-summary-text" style="font-size: 11px; color: #64748b;">Memuat data pengunjung...</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <label for="select-admin-user-filter" style="font-size: 12px; font-weight: 600; color: #475569;">Pilih Pengunjung:</label>
+                                    <select id="select-admin-user-filter" class="form-input" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; max-width: 260px; cursor: pointer;">
+                                        <option value="all">Semua Pengunjung (Semua Foto)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="admin-user-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
+                                <!-- User badges injected dynamically -->
+                            </div>
                         </div>
 
                         <!-- Admin Media Grid -->
