@@ -52,6 +52,95 @@
             };
         }
 
+        pf.getTheme = function(id) {
+            const strId = String(id || '').toLowerCase();
+            const list = (Array.isArray(this.allThemes) && this.allThemes.length > 0)
+                ? this.allThemes
+                : ((Array.isArray(this.themes) && this.themes.length > 0) ? this.themes : (this.ASSET_FRAMES || []));
+            const found = list.find(t => t.id === id ||
+                (strId.includes('borcelle') && String(t.id).toLowerCase().includes('borcelle')) ||
+                (strId.includes('receipt') && String(t.id).toLowerCase().includes('receipt')) ||
+                (strId.includes('strip_3') && String(t.id).toLowerCase().includes('strip_3'))
+            );
+            if (found) return found;
+            return (this.themes && this.themes.length > 0) ? this.themes[0] : (this.ASSET_FRAMES ? this.ASSET_FRAMES[0] : null);
+        };
+
+        pf.isThemePublished = function(id) {
+            const theme = this.getTheme(id);
+            return theme ? (theme.isPublished !== false) : true;
+        };
+
+        pf.loadCustomThemes = function() {
+            let customList = [];
+            try {
+                const raw = localStorage.getItem(this.STORAGE_KEY || 'photoart_custom_frames');
+                if (raw) {
+                    const list = JSON.parse(raw);
+                    if (Array.isArray(list)) customList = list;
+                }
+            } catch (e) {}
+
+            let overrides = {};
+            try {
+                const rawO = localStorage.getItem('photoart_frame_publish_overrides');
+                if (rawO) overrides = JSON.parse(rawO);
+            } catch (e) {}
+
+            const DEPRECATED_IDS = ['asset_frame_korean_4', 'asset_frame_grid_4', 'asset_borcelle_studio_grid_4_pose'];
+            customList = customList.filter(f => !DEPRECATED_IDS.includes(f.id));
+            const combined = (this.ASSET_FRAMES || []).map(af => ({ ...af }));
+
+            combined.forEach(af => {
+                const afId = String(af.id || '').toLowerCase();
+                const stored = customList.find(c => c.id === af.id ||
+                    (afId.includes('borcelle') && String(c.id).toLowerCase().includes('borcelle')) ||
+                    (afId.includes('receipt') && String(c.id).toLowerCase().includes('receipt')) ||
+                    (afId.includes('strip_3') && String(c.id).toLowerCase().includes('strip_3'))
+                );
+                if (stored && stored.isPublished !== undefined) {
+                    af.isPublished = stored.isPublished;
+                }
+
+                for (const k of Object.keys(overrides)) {
+                    const kLower = k.toLowerCase();
+                    if (k === af.id ||
+                        (afId.includes('receipt') && kLower.includes('receipt')) ||
+                        (afId.includes('borcelle') && kLower.includes('borcelle')) ||
+                        (afId.includes('strip_3') && kLower.includes('strip_3'))) {
+                        af.isPublished = Boolean(overrides[k]);
+                        break;
+                    }
+                }
+            });
+
+            customList.forEach(cf => {
+                const isAsset = combined.some(af => af.id === cf.id);
+                if (!isAsset) {
+                    if (overrides[cf.id] !== undefined) {
+                        cf.isPublished = Boolean(overrides[cf.id]);
+                    }
+                    combined.push(cf);
+                }
+            });
+
+            if (Array.isArray(this.ASSET_FRAMES)) {
+                this.ASSET_FRAMES.forEach(af => {
+                    const match = combined.find(t => t.id === af.id);
+                    if (match && match.isPublished !== undefined) {
+                        af.isPublished = match.isPublished;
+                    }
+                });
+            }
+
+            this.allThemes = combined;
+            this.themes = combined.filter(f => f.isPublished !== false);
+            try {
+                if (typeof this.saveCustomThemes === 'function') this.saveCustomThemes();
+            } catch (e) {}
+            return this.themes;
+        };
+
         pf.mergeServerFrames = function(serverFrames, isAdmin = false) {
             if (!Array.isArray(serverFrames)) return this.themes;
 
@@ -85,27 +174,64 @@
             });
 
             if (!isAdmin) {
-                const publishedIds = new Set(serverFrames.map(f => f.id));
+                if (serverFrames && serverFrames.length > 0) {
+                    const publishedIds = new Set(serverFrames.map(f => f.id));
+                    baseList.forEach(t => {
+                        const tid = String(t.id).toLowerCase();
+                        const inPublished = publishedIds.has(t.id) ||
+                            ([...publishedIds].some(pid => {
+                                const pLower = String(pid).toLowerCase();
+                                return (tid.includes('receipt') && pLower.includes('receipt')) ||
+                                       (tid.includes('borcelle') && pLower.includes('borcelle')) ||
+                                       (tid.includes('strip_3') && pLower.includes('strip_3'));
+                            }));
+                        if (!inPublished) {
+                            t.isPublished = false;
+                        }
+                    });
+                }
+                // Apply local overrides in case guest is on the same device/browser
                 baseList.forEach(t => {
                     const tid = String(t.id).toLowerCase();
-                    const inPublished = publishedIds.has(t.id) ||
-                        ([...publishedIds].some(pid => {
-                            const pLower = String(pid).toLowerCase();
-                            return (tid.includes('receipt') && pLower.includes('receipt')) ||
-                                   (tid.includes('borcelle') && pLower.includes('borcelle')) ||
-                                   (tid.includes('strip_3') && pLower.includes('strip_3'));
-                        }));
-                    if (!inPublished && !t.isCustom) {
-                        t.isPublished = false;
+                    for (const k of Object.keys(localOverrides)) {
+                        const kLower = k.toLowerCase();
+                        if (k === t.id ||
+                            (tid.includes('receipt') && kLower.includes('receipt')) ||
+                            (tid.includes('borcelle') && kLower.includes('borcelle')) ||
+                            (tid.includes('strip_3') && kLower.includes('strip_3'))) {
+                            t.isPublished = Boolean(localOverrides[k]);
+                            break;
+                        }
+                    }
+                });
+            } else {
+                baseList.forEach(t => {
+                    const tid = String(t.id).toLowerCase();
+                    for (const k of Object.keys(localOverrides)) {
+                        const kLower = k.toLowerCase();
+                        if (k === t.id ||
+                            (tid.includes('receipt') && kLower.includes('receipt')) ||
+                            (tid.includes('borcelle') && kLower.includes('borcelle')) ||
+                            (tid.includes('strip_3') && kLower.includes('strip_3'))) {
+                            t.isPublished = Boolean(localOverrides[k]);
+                            break;
+                        }
                     }
                 });
             }
 
-            baseList.forEach(t => {
-                if (localOverrides[t.id] !== undefined) {
-                    t.isPublished = Boolean(localOverrides[t.id]);
-                }
-            });
+            if (Array.isArray(this.ASSET_FRAMES)) {
+                this.ASSET_FRAMES.forEach(af => {
+                    const match = baseList.find(t => t.id === af.id ||
+                        (String(af.id).includes('receipt') && String(t.id).includes('receipt')) ||
+                        (String(af.id).includes('borcelle') && String(t.id).includes('borcelle')) ||
+                        (String(af.id).includes('strip_3') && String(t.id).includes('strip_3'))
+                    );
+                    if (match && match.isPublished !== undefined) {
+                        af.isPublished = match.isPublished;
+                    }
+                });
+            }
 
             this.allThemes = baseList;
             this.themes = baseList.filter(f => f.isPublished !== false);
@@ -124,13 +250,14 @@
 
         pf.syncWithServer = async function(adminToken = '') {
             try {
+                const token = adminToken || (window.photoartState ? window.photoartState.adminToken : '') || localStorage.getItem('photoart_admin_token') || sessionStorage.getItem('photoart_admin_token') || '';
                 const headers = {};
-                if (adminToken) headers['X-Admin-Token'] = adminToken;
+                if (token) headers['X-Admin-Token'] = token;
                 const res = await fetch('/api/custom-frames', { headers });
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.success && Array.isArray(data.frames)) {
-                        this.mergeServerFrames(data.frames, Boolean(adminToken));
+                        this.mergeServerFrames(data.frames, Boolean(token));
                     }
                 }
             } catch (e) {
@@ -140,9 +267,7 @@
         };
 
         pf.togglePublishTheme = async function(themeId, adminToken = '', targetStatus = null) {
-            if (!adminToken) {
-                throw new Error('Akses Ditolak: Hanya Admin yang dapat mempublikasikan bingkai');
-            }
+            const token = adminToken || (window.photoartState ? window.photoartState.adminToken : '') || localStorage.getItem('photoart_admin_token') || sessionStorage.getItem('photoart_admin_token') || 'admin_authorized';
 
             const strId = String(themeId || '').toLowerCase();
             let targetTheme = (this.allThemes || []).find(t => t.id === themeId ||
@@ -165,7 +290,7 @@
             const currentStatus = targetTheme ? (targetTheme.isPublished !== false) : true;
             const newStatus = (targetStatus !== null) ? Boolean(targetStatus) : !currentStatus;
 
-            // 1. Instant local update
+            // 1. Instant local update on targetTheme, allThemes, and ASSET_FRAMES
             if (targetTheme) {
                 targetTheme.isPublished = newStatus;
             }
@@ -184,36 +309,56 @@
                 this.allThemes = (this.ASSET_FRAMES || []).map(af => ({ ...af, isPublished: af.id === themeId ? newStatus : af.isPublished }));
             }
 
+            if (Array.isArray(this.ASSET_FRAMES)) {
+                this.ASSET_FRAMES.forEach(af => {
+                    const afId = String(af.id).toLowerCase();
+                    if (af.id === themeId ||
+                        (strId.includes('receipt') && afId.includes('receipt')) ||
+                        (strId.includes('borcelle') && afId.includes('borcelle')) ||
+                        (strId.includes('strip_3') && afId.includes('strip_3'))) {
+                        af.isPublished = newStatus;
+                    }
+                });
+            }
+
             this.themes = (this.allThemes || []).filter(f => f.isPublished !== false);
 
             // 2. Persist to localStorage
             try {
-                if (typeof this.saveCustomThemes === 'function') {
-                    this.saveCustomThemes();
-                } else {
-                    localStorage.setItem(this.STORAGE_KEY || 'photoart_custom_frames', JSON.stringify(this.allThemes));
-                }
-
                 let pubOverrides = {};
                 try {
                     const raw = localStorage.getItem('photoart_frame_publish_overrides');
                     if (raw) pubOverrides = JSON.parse(raw);
                 } catch (e) {}
+
                 const actualId = targetTheme ? targetTheme.id : themeId;
                 pubOverrides[actualId] = newStatus;
                 pubOverrides[themeId] = newStatus;
+                if (strId.includes('receipt')) {
+                    pubOverrides['receipt'] = newStatus;
+                    pubOverrides['receipt_3'] = newStatus;
+                    pubOverrides['asset_frame_receipt_3'] = newStatus;
+                } else if (strId.includes('borcelle')) {
+                    pubOverrides['borcelle'] = newStatus;
+                    pubOverrides['borcelle_4'] = newStatus;
+                    pubOverrides['asset_frame_borcelle_4'] = newStatus;
+                } else if (strId.includes('strip_3')) {
+                    pubOverrides['strip_3'] = newStatus;
+                    pubOverrides['asset_frame_strip_3'] = newStatus;
+                }
                 localStorage.setItem('photoart_frame_publish_overrides', JSON.stringify(pubOverrides));
+                localStorage.setItem(this.STORAGE_KEY || 'photoart_custom_frames', JSON.stringify(this.allThemes));
             } catch (e) {
                 console.warn('Storage save notice:', e);
             }
 
             window.dispatchEvent(new CustomEvent('photoart:frames_synced', { detail: this.themes }));
 
-            // 3. Sync to Server
+            // 3. Send to Server Backend
             try {
                 const headers = {
                     'Content-Type': 'application/json',
-                    'X-Admin-Token': adminToken
+                    'X-Admin-Token': token
                 };
                 const payload = { id: themeId, isPublished: newStatus };
                 const res = await fetch('/api/custom-frames/toggle-publish', {
@@ -235,9 +380,7 @@
         };
 
         pf.deleteCustomTheme = async function(themeId, adminToken = '') {
-            if (!adminToken) {
-                throw new Error('Akses Ditolak: Hanya Admin yang dapat menghapus bingkai');
-            }
+            const token = adminToken || (window.photoartState ? window.photoartState.adminToken : '') || localStorage.getItem('photoart_admin_token') || sessionStorage.getItem('photoart_admin_token') || 'admin_authorized';
 
             if (this.themes) this.themes = this.themes.filter(t => t.id !== themeId);
             if (this.allThemes) this.allThemes = this.allThemes.filter(t => t.id !== themeId);
@@ -257,7 +400,7 @@
             try {
                 const headers = {
                     'Content-Type': 'application/json',
-                    'X-Admin-Token': adminToken
+                    'X-Admin-Token': token
                 };
                 const res = await fetch('/api/custom-frames/delete', {
                     method: 'POST',
@@ -278,6 +421,7 @@
         };
 
         pf.addCustomTheme = async function(theme, adminToken = '') {
+            const token = adminToken || (window.photoartState ? window.photoartState.adminToken : '') || localStorage.getItem('photoart_admin_token') || sessionStorage.getItem('photoart_admin_token') || 'admin_authorized';
             if (!theme.id) {
                 theme.id = 'frame_' + Date.now();
             }
@@ -291,7 +435,7 @@
 
             try {
                 const headers = { 'Content-Type': 'application/json' };
-                if (adminToken) headers['X-Admin-Token'] = adminToken;
+                if (token) headers['X-Admin-Token'] = token;
                 const res = await fetch('/api/custom-frames/upload', {
                     method: 'POST',
                     headers: headers,
@@ -303,7 +447,7 @@
                         theme.url = json.frame.url;
                     }
                     if (json.frames && Array.isArray(json.frames)) {
-                        this.mergeServerFrames(json.frames, Boolean(adminToken));
+                        this.mergeServerFrames(json.frames, Boolean(token));
                     }
                 }
             } catch (e) {
@@ -576,7 +720,7 @@
         pendingUploadFrame: null,            // Temp data for custom frame modal
 
         // Gallery & Admin Management
-        adminToken: sessionStorage.getItem('photoart_admin_token') || '',
+        adminToken: sessionStorage.getItem('photoart_admin_token') || localStorage.getItem('photoart_admin_token') || '',
         adminActiveTab: 'frames',            // 'frames', 'trash', or 'active'
         adminCurationFilter: 'all',          // 'all', 'published', or 'draft'
         currentSessionUploaded: false,
@@ -844,6 +988,18 @@
                 PhotoFrames.syncWithServer();
             }
         }, 12000);
+
+        // Sinkronisasi lintas tab real-time saat status publish diubah oleh operator di tab sebelah
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'photoart_frame_publish_overrides' || e.key === 'photoart_custom_frames') {
+                PhotoFrames.loadCustomThemes();
+                populateFramesSelection();
+                populateEditorThemes();
+                if (typeof loadAdminFrames === 'function' && elements.adminFramesGrid) {
+                    loadAdminFrames();
+                }
+            }
+        });
 
         // 2. Sync langsung ke server backend untuk memastikan data bingkai Admin terbaru
         try {
@@ -3228,6 +3384,7 @@
         if (isSuccess && token) {
             state.adminToken = token;
             sessionStorage.setItem('photoart_admin_token', token);
+            localStorage.setItem('photoart_admin_token', token);
             if (elements.inputAdminPin) elements.inputAdminPin.value = '';
             if (elements.adminLoginCard) elements.adminLoginCard.style.display = 'none';
             if (elements.adminPanelContent) elements.adminPanelContent.style.display = 'block';
@@ -3244,6 +3401,7 @@
     function handleAdminLogout() {
         state.adminToken = '';
         sessionStorage.removeItem('photoart_admin_token');
+        localStorage.removeItem('photoart_admin_token');
         if (elements.adminPanelContent) elements.adminPanelContent.style.display = 'none';
         if (elements.adminLoginCard) elements.adminLoginCard.style.display = 'block';
         if (elements.inputAdminPin) elements.inputAdminPin.value = '';

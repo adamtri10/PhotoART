@@ -38,6 +38,11 @@
     --accent: #f59e0b;
     --border-color: var(--border-card);
 
+    /* Typography Font Stack (Editorial Studio) */
+    --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Plus Jakarta Sans', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
     /* Typography Colors (Clean, Crisp, High Contrast) */
     --text-pure: #000000;
     --text-primary: #111827;
@@ -68,6 +73,7 @@
     padding: 0;
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    font-family: inherit;
 }
 
 html, body {
@@ -75,11 +81,16 @@ html, body {
     max-width: 100vw;
     overflow-x: hidden;
     min-height: 100vh;
+    font-family: var(--font-main);
+}
+
+button, input, select, textarea {
+    font-family: var(--font-main);
 }
 
 /* Body with Luxury Camera Viewfinder Dot-Grid Motif */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-main);
     background-color: #ffffff;
     background-image: 
         radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 40%),
@@ -503,9 +514,9 @@ header.app-header {
     border-radius: var(--radius-pill);
     background: #e5e7eb;
     color: #111827;
-    font-weight: 900;
-    font-family: monospace;
-    letter-spacing: 0.05em;
+    font-weight: 800;
+    font-family: var(--font-main);
+    letter-spacing: 0.02em;
 }
 
 .step-track-item.active {
@@ -2698,7 +2709,8 @@ main.app-main {
     color: var(--text-pure);
     padding: 9px 12px;
     font-size: 12px;
-    font-family: monospace;
+    font-family: var(--font-main);
+    letter-spacing: -0.01em;
 }
 
 .url-input-group input:focus {
@@ -2931,10 +2943,10 @@ main.app-main {
     color: #ffffff;
     font-size: 9px;
     font-weight: 800;
-    font-family: monospace;
+    font-family: var(--font-main);
     padding: 2px 8px;
     border-radius: var(--radius-pill);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     z-index: 3;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
@@ -3302,27 +3314,31 @@ main.app-main {
     font-size: 26px;
     font-weight: 900;
     color: #000000;
-    line-height: 1.1;
-    font-family: monospace;
+    line-height: 1.15;
+    font-family: var(--font-main);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
 }
 
 @media (max-width: 640px) {
     .stat-num {
-        font-size: 18px;
+        font-size: 19px;
+        font-weight: 800;
     }
 }
 
 .stat-label {
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 700;
     color: #6b7280;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    font-family: var(--font-main);
 }
 
 @media (max-width: 640px) {
     .stat-label {
-        font-size: 10px;
-        line-height: 1.2;
+        font-size: 9.5px;
+        line-height: 1.25;
     }
 }
 
@@ -4654,28 +4670,35 @@ main.app-main {
 
 .btn-publish-main {
     width: 100%;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+    font-size: 12.5px;
     font-weight: 800;
+    font-family: var(--font-main);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 7px;
     transition: var(--transition);
     border: none;
+    letter-spacing: 0.01em;
+    min-height: 40px;
+}
+
+.btn-publish-main:active {
+    transform: scale(0.98);
 }
 
 .btn-publish-main.action-publish {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.28);
 }
 
 .btn-publish-main.action-publish:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.38);
     filter: brightness(1.05);
 }
 
@@ -4695,16 +4718,18 @@ main.app-main {
     background: #f5f3ff;
     border: 1px solid #ddd6fe;
     color: #6d28d9;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    border-radius: var(--radius-pill);
     font-size: 11.5px;
     font-weight: 800;
+    font-family: var(--font-main);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
     transition: var(--transition);
+    min-height: 36px;
 }
 
 .btn-preview-admin-frame:hover {
