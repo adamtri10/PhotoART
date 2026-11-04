@@ -611,17 +611,49 @@
 
     const PhotoStorage = {
         STORAGE_KEY: 'photoart_user_photos_v1',
+        TOMBSTONE_KEY: 'photoart_deleted_tombstones_v1',
         DB_NAME: 'PhotoArtAppDB',
         DB_VERSION: 1,
         STORE_NAME: 'user_photos',
         _db: null,
         _cache: null,
 
+        getTombstones() {
+            try {
+                const raw = localStorage.getItem(this.TOMBSTONE_KEY);
+                return new Set(raw ? JSON.parse(raw) : []);
+            } catch (e) {
+                return new Set();
+            }
+        },
+
+        addTombstone(photoId) {
+            if (!photoId) return;
+            try {
+                const set = this.getTombstones();
+                set.add(photoId);
+                localStorage.setItem(this.TOMBSTONE_KEY, JSON.stringify(Array.from(set)));
+            } catch (e) {}
+        },
+
+        removeTombstone(photoId) {
+            if (!photoId) return;
+            try {
+                const set = this.getTombstones();
+                if (set.has(photoId)) {
+                    set.delete(photoId);
+                    localStorage.setItem(this.TOMBSTONE_KEY, JSON.stringify(Array.from(set)));
+                }
+            } catch (e) {}
+        },
+
         _initCache() {
             if (this._cache !== null) return this._cache;
             try {
                 const raw = localStorage.getItem(this.STORAGE_KEY);
-                this._cache = raw ? JSON.parse(raw) : [];
+                const list = raw ? JSON.parse(raw) : [];
+                const tombstones = this.getTombstones();
+                this._cache = Array.isArray(list) ? list.filter(p => p && p.id && !tombstones.has(p.id)) : [];
             } catch (e) {
                 this._cache = [];
             }
@@ -656,6 +688,7 @@
 
         async getAll() {
             this._initCache();
+            const tombstones = this.getTombstones();
             const db = await this.getDB();
             if (db) {
                 try {
@@ -668,15 +701,34 @@
                     });
                     if (fromIDB && fromIDB.length > 0) {
                         const map = new Map();
-                        this._cache.forEach(p => map.set(p.id, p));
-                        fromIDB.forEach(p => map.set(p.id, p));
+                        this._cache.forEach(p => {
+                            if (p && p.id && !tombstones.has(p.id)) map.set(p.id, p);
+                        });
+                        const prunedIds = [];
+                        fromIDB.forEach(p => {
+                            if (p && p.id) {
+                                if (tombstones.has(p.id)) {
+                                    prunedIds.push(p.id);
+                                } else {
+                                    map.set(p.id, p);
+                                }
+                            }
+                        });
+                        if (prunedIds.length > 0) {
+                            try {
+                                const ptx = db.transaction(this.STORE_NAME, 'readwrite');
+                                const pstore = ptx.objectStore(this.STORE_NAME);
+                                prunedIds.forEach(pid => pstore.delete(pid));
+                            } catch (pe) {}
+                        }
                         this._cache = Array.from(map.values());
                         this._cache.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                         return this._cache;
                     }
                 } catch (e) {}
             }
-            return this._cache || [];
+            this._cache = (this._cache || []).filter(p => p && p.id && !tombstones.has(p.id));
+            return this._cache;
         },
 
         getAllSync() {
@@ -690,6 +742,9 @@
         },
 
         async save(photo) {
+            if (!photo || !photo.id) return photo;
+            this.removeTombstone(photo.id);
+
             this._initCache();
             const idx = this._cache.findIndex(p => p.id === photo.id);
             if (idx >= 0) {
@@ -743,6 +798,9 @@
         },
 
         async restore(photoId) {
+            if (!photoId) return false;
+            this.removeTombstone(photoId);
+
             this._initCache();
             const photo = this._cache.find(p => p.id === photoId);
             if (photo) {
@@ -755,6 +813,9 @@
         },
 
         async permanentDelete(photoId) {
+            if (!photoId) return true;
+            this.addTombstone(photoId);
+
             this._initCache();
             this._cache = this._cache.filter(p => p.id !== photoId);
 
@@ -949,6 +1010,7 @@
         badgeTrashCount: document.getElementById('badge-trash-count'),
         badgeActiveCount: document.getElementById('badge-active-count'),
         adminTrashNotice: document.getElementById('admin-trash-notice'),
+        adminMediaNotice: document.getElementById('admin-media-notice'),
         adminMediaGrid: document.getElementById('admin-media-grid'),
         adminMediaEmpty: document.getElementById('admin-media-empty'),
 
@@ -3595,10 +3657,15 @@
             } catch (netErr) {}
 
             const localPhotos = await PhotoStorage.getUserPhotos(currentUserId);
+            const tombstones = PhotoStorage.getTombstones();
 
             const photoMap = new Map();
-            serverPhotos.forEach(p => { if (!p.deleted) photoMap.set(p.id, p); });
-            localPhotos.forEach(p => { if (!p.deleted) photoMap.set(p.id, p); });
+            serverPhotos.forEach(p => {
+                if (p && !p.deleted && !tombstones.has(p.id)) photoMap.set(p.id, p);
+            });
+            localPhotos.forEach(p => {
+                if (p && !p.deleted && !tombstones.has(p.id)) photoMap.set(p.id, p);
+            });
 
             const photos = Array.from(photoMap.values());
             photos.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -4002,8 +4069,10 @@
             const u = userStatsMap[uid];
             const opt = document.createElement('option');
             opt.value = uid;
-            const relevantCount = isTrashTab ? u.deletedCount : u.activeCount;
-            opt.innerText = `${u.userName} (${relevantCount} foto ${isTrashTab ? 'sampah' : 'aktif'}, total ${u.totalCount})`;
+            const relevantCount = isTrashTab ? u.deletedCount : u.totalCount;
+            opt.innerText = isTrashTab
+                ? `${u.userName} (${u.deletedCount} di sampah)`
+                : `${u.userName} (${u.activeCount} di galeri user, total ${u.totalCount})`;
             elements.selectAdminUserFilter.appendChild(opt);
         });
 
@@ -4030,7 +4099,7 @@
 
             uids.forEach(uid => {
                 const u = userStatsMap[uid];
-                const relevantCount = isTrashTab ? u.deletedCount : u.activeCount;
+                const relevantCount = isTrashTab ? u.deletedCount : u.totalCount;
                 if (relevantCount === 0 && tabPhotos.length > 0) return;
 
                 const chip = document.createElement('button');
@@ -4060,10 +4129,12 @@
             });
             if (statsRes.ok) {
                 const sData = await statsRes.json();
+                const totalMedia = sData.totalPhotos ?? ((sData.activeCount ?? 0) + (sData.trashCount ?? 0));
+                if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = totalMedia;
                 if (elements.statActivePhotos) elements.statActivePhotos.innerText = sData.activeCount ?? 0;
                 if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = sData.trashCount ?? 0;
                 if (elements.statTotalUsers) elements.statTotalUsers.innerText = sData.activeUsers ?? sData.uniqueUsers ?? 0;
-                if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = sData.activeCount ?? 0;
+                if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = totalMedia;
                 if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = sData.trashCount ?? 0;
             }
         } catch (e) {}
@@ -4101,7 +4172,12 @@
         if (elements.adminTrashNotice) {
             elements.adminTrashNotice.style.display = isTrashTab ? 'block' : 'none';
         }
+        if (elements.adminMediaNotice) {
+            elements.adminMediaNotice.style.display = isTrashTab ? 'none' : 'block';
+        }
 
+        // 1. Fetch server photos
+        let serverPhotos = [];
         try {
             const res = await fetch('/api/admin/photos', {
                 headers: { 'X-Admin-Token': state.adminToken }
@@ -4113,93 +4189,103 @@
                 return;
             }
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Gagal memuat media admin');
-
-            if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = data.stats.total;
-            if (elements.statActivePhotos) elements.statActivePhotos.innerText = data.stats.active;
-            if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = data.stats.deleted;
-            if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = data.stats.deleted;
-            if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = data.stats.active;
-
-            const allPhotos = data.photos || [];
-            const deletedList = data.deletedPhotos || allPhotos.filter(p => p.deleted);
-            const activeList = data.activePhotos || allPhotos.filter(p => !p.deleted);
-            const tabPhotos = isTrashTab ? deletedList : activeList;
-
-            const userStatsMap = computeUserStats(allPhotos);
-            renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab);
-
-            let targetPhotos = tabPhotos;
-            if (state.adminSelectedUserFilter && state.adminSelectedUserFilter !== 'all') {
-                targetPhotos = tabPhotos.filter(p => (p.userId || 'user_guest') === state.adminSelectedUserFilter);
+            if (res.ok) {
+                const data = await res.json();
+                serverPhotos = data.photos || [];
             }
-
-            if (!targetPhotos || targetPhotos.length === 0) {
-                elements.adminMediaGrid.style.display = 'none';
-                if (elements.adminMediaEmpty) {
-                    elements.adminMediaEmpty.style.display = 'block';
-                    elements.adminMediaEmpty.querySelector('h3').innerText = isTrashTab
-                        ? 'Keranjang Sampah Kosong'
-                        : 'Belum Ada Foto';
-                    elements.adminMediaEmpty.querySelector('p').innerText = state.adminSelectedUserFilter !== 'all'
-                        ? 'Tidak ada foto untuk pengunjung yang dipilih pada tab ini.'
-                        : (isTrashTab ? 'Tidak ada foto yang dihapus oleh pengunjung. Semua media aman.' : 'Belum ada foto aktif yang dibuat oleh pengunjung.');
-                }
-                return;
-            }
-
-            if (elements.adminMediaEmpty) elements.adminMediaEmpty.style.display = 'none';
-            elements.adminMediaGrid.style.display = 'grid';
-            elements.adminMediaGrid.innerHTML = '';
-
-            targetPhotos.forEach(photo => {
-                const card = createAdminPhotoCard(photo, userStatsMap);
-                elements.adminMediaGrid.appendChild(card);
-            });
-        } catch (err) {
-            const allPhotos = await PhotoStorage.getAll();
-            const activeList = allPhotos.filter(p => !p.deleted);
-            const deletedList = allPhotos.filter(p => p.deleted);
-            const tabPhotos = isTrashTab ? deletedList : activeList;
-
-            if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = allPhotos.length;
-            if (elements.statActivePhotos) elements.statActivePhotos.innerText = activeList.length;
-            if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = deletedList.length;
-            if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = deletedList.length;
-            if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = activeList.length;
-
-            const userStatsMap = computeUserStats(allPhotos);
-            renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab);
-
-            let targetPhotos = tabPhotos;
-            if (state.adminSelectedUserFilter && state.adminSelectedUserFilter !== 'all') {
-                targetPhotos = tabPhotos.filter(p => (p.userId || 'user_guest') === state.adminSelectedUserFilter);
-            }
-
-            if (!targetPhotos || targetPhotos.length === 0) {
-                elements.adminMediaGrid.style.display = 'none';
-                if (elements.adminMediaEmpty) {
-                    elements.adminMediaEmpty.style.display = 'block';
-                    elements.adminMediaEmpty.querySelector('h3').innerText = isTrashTab
-                        ? 'Keranjang Sampah Kosong'
-                        : 'Belum Ada Foto';
-                    elements.adminMediaEmpty.querySelector('p').innerText = state.adminSelectedUserFilter !== 'all'
-                        ? 'Tidak ada foto untuk pengunjung yang dipilih pada tab ini.'
-                        : (isTrashTab ? 'Tidak ada foto yang dihapus. Semua media aman.' : 'Belum ada foto aktif yang dibuat oleh pengunjung.');
-                }
-                return;
-            }
-
-            if (elements.adminMediaEmpty) elements.adminMediaEmpty.style.display = 'none';
-            elements.adminMediaGrid.style.display = 'grid';
-            elements.adminMediaGrid.innerHTML = '';
-
-            targetPhotos.forEach(photo => {
-                const card = createAdminPhotoCard(photo, userStatsMap);
-                elements.adminMediaGrid.appendChild(card);
-            });
+        } catch (e) {
+            console.warn("Could not fetch server admin photos, will merge with local cache:", e);
         }
+
+        // 2. Fetch local photos from PhotoStorage
+        let localPhotos = [];
+        try {
+            localPhotos = await PhotoStorage.getAll();
+        } catch (e) {}
+
+        // 3. Filter against persistent tombstones & merge
+        const tombstones = PhotoStorage.getTombstones();
+        const photoMap = new Map();
+
+        // Server photos
+        serverPhotos.forEach(p => {
+            if (p && p.id && !tombstones.has(p.id)) {
+                photoMap.set(p.id, p);
+            }
+        });
+
+        // Local photos (merge & background sync if missing on server)
+        localPhotos.forEach(p => {
+            if (p && p.id && !tombstones.has(p.id)) {
+                if (!photoMap.has(p.id)) {
+                    photoMap.set(p.id, p);
+                    // Background sync local photo to server
+                    if (p.url && p.url.startsWith('data:')) {
+                        fetch('/api/photos/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-User-Id': p.userId || '' },
+                            body: JSON.stringify(p)
+                        }).catch(() => {});
+                    }
+                } else {
+                    const existing = photoMap.get(p.id);
+                    if (p.deleted && !existing.deleted) {
+                        existing.deleted = true;
+                        existing.deletedAt = p.deletedAt;
+                    }
+                    if (!existing.userName && p.userName) existing.userName = p.userName;
+                    if (!existing.userDevice && p.userDevice) existing.userDevice = p.userDevice;
+                }
+            }
+        });
+
+        const allPhotos = Array.from(photoMap.values());
+        allPhotos.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        const deletedList = allPhotos.filter(p => p.deleted);
+        const activeList = allPhotos.filter(p => !p.deleted);
+
+        // "Semua foto yang tampil di media semua user yaitu semua foto yang masih ada di galeri dashboard user dan keranjang sampah."
+        // Tab "Keranjang Sampah" -> deletedList
+        // Tab "Media Semua User" -> allPhotos (active + trash)
+        const tabPhotos = isTrashTab ? deletedList : allPhotos;
+
+        if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = allPhotos.length;
+        if (elements.statActivePhotos) elements.statActivePhotos.innerText = activeList.length;
+        if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = deletedList.length;
+        if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = deletedList.length;
+        if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = allPhotos.length;
+
+        const userStatsMap = computeUserStats(allPhotos);
+        renderAdminUserFilterControls(userStatsMap, tabPhotos, isTrashTab);
+
+        let targetPhotos = tabPhotos;
+        if (state.adminSelectedUserFilter && state.adminSelectedUserFilter !== 'all') {
+            targetPhotos = tabPhotos.filter(p => (p.userId || 'user_guest') === state.adminSelectedUserFilter);
+        }
+
+        if (!targetPhotos || targetPhotos.length === 0) {
+            elements.adminMediaGrid.style.display = 'none';
+            if (elements.adminMediaEmpty) {
+                elements.adminMediaEmpty.style.display = 'block';
+                elements.adminMediaEmpty.querySelector('h3').innerText = isTrashTab
+                    ? 'Keranjang Sampah Kosong'
+                    : 'Belum Ada Media Pengunjung';
+                elements.adminMediaEmpty.querySelector('p').innerText = state.adminSelectedUserFilter !== 'all'
+                    ? 'Tidak ada foto untuk pengunjung yang dipilih pada tab ini.'
+                    : (isTrashTab ? 'Tidak ada foto yang dihapus oleh pengunjung. Semua media aman.' : 'Belum ada foto yang tersimpan di galeri user maupun keranjang sampah.');
+            }
+            return;
+        }
+
+        if (elements.adminMediaEmpty) elements.adminMediaEmpty.style.display = 'none';
+        elements.adminMediaGrid.style.display = 'grid';
+        elements.adminMediaGrid.innerHTML = '';
+
+        targetPhotos.forEach(photo => {
+            const card = createAdminPhotoCard(photo, userStatsMap);
+            elements.adminMediaGrid.appendChild(card);
+        });
     }
 
     function createAdminPhotoCard(photo, userStatsMap) {
@@ -4241,7 +4327,7 @@
                     </div>
                 </div>
                 <div style="flex-shrink: 0; text-align: right;">
-                    <span style="display: inline-block; font-size: 10px; font-weight: 800; color: #0284c7; background: #e0f2fe; padding: 3px 8px; border-radius: 999px; border: 1px solid #bae6fd;" title="Pengunjung ini memiliki total ${userActiveCount} foto aktif di galeri (dari ${userTotalCount} pemotretan)">
+                    <span style="display: inline-block; font-size: 10px; font-weight: 800; color: #0284c7; background: #e0f2fe; padding: 3px 8px; border-radius: 999px; border: 1px solid #bae6fd;" title="Pengunjung ini memiliki total ${userActiveCount} foto aktif di galeri (dari ${userTotalCount} total riwayat foto)">
                         🖼️ ${userActiveCount} Foto di Galeri
                     </span>
                 </div>
@@ -4250,7 +4336,7 @@
             <div class="admin-media-thumb-box" title="Klik untuk memperbesar">
                 <img class="admin-media-thumb" src="${photo.url}" alt="${themeName}" loading="lazy">
                 <span class="admin-status-pill ${photo.deleted ? 'status-deleted' : 'status-active'}">
-                    ${photo.deleted ? '🗑️ Terhapus User' : '🟢 Aktif di User'}
+                    ${photo.deleted ? '🗑️ Di Keranjang Sampah' : '🟢 Aktif di Galeri User'}
                 </span>
             </div>
             <div class="admin-card-body">
@@ -4261,7 +4347,7 @@
                 ${safeHeader ? `<div style="font-size: 11px; font-weight: 700; color: #334155; margin-top: 3px;">💬 "${safeHeader}"</div>` : ''}
                 ${safeSubtitle ? `<div style="font-size: 10px; color: #64748b; margin-top: 1px;">📝 ${safeSubtitle}</div>` : ''}
                 <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">📅 Dibuat: ${createdDate}</div>
-                ${photo.deleted ? `<div style="font-size: 10px; color: #dc2626; font-weight: 700; margin-top: 2px;">⚠️ Dihapus oleh User: ${deletedDate}</div>` : ''}
+                ${photo.deleted ? `<div style="font-size: 10px; color: #dc2626; font-weight: 700; margin-top: 2px;">⚠️ Di Keranjang Sampah: ${deletedDate || 'Baru saja'}</div>` : ''}
             </div>
             <div class="admin-card-actions">
                 ${photo.deleted ? `
@@ -4272,6 +4358,9 @@
                         <a href="${photo.url}" download="photoart_${safeId}.${fileExt}" class="btn-admin-small">
                             📥 Unduh
                         </a>
+                        <button type="button" class="btn-admin-small" data-action="zoom">
+                            🔍 Zoom
+                        </button>
                         <button type="button" class="btn-admin-small btn-danger" data-action="perm-delete">
                             ❌ Hapus Permanen
                         </button>
@@ -4293,7 +4382,7 @@
         `;
 
         const thumbBox = card.querySelector('.admin-media-thumb-box');
-        const handleZoom = () => openLightbox(photo.url, `Admin Media [${photo.deleted ? 'TERHAPUS' : 'AKTIF'}] • ID: ${photo.id} • ${themeName}`);
+        const handleZoom = () => openLightbox(photo.url, `Admin Media [${photo.deleted ? 'DI KERANJANG SAMPAH' : 'AKTIF DI GALERI'}] • ID: ${photo.id} • ${themeName}`);
         if (thumbBox) thumbBox.addEventListener('click', handleZoom);
 
         const btnZoom = card.querySelector('[data-action="zoom"]');
@@ -4346,12 +4435,14 @@
     }
 
     async function adminPermanentDelete(id) {
-        if (!confirm('PERINGATAN: Foto akan dihapus secara permanen dan tidak dapat dikembalikan lagi. Lanjutkan?')) {
+        if (!confirm('PERINGATAN: Foto akan dihapus secara PERMANEN dari sistem, server, dan database.\n\nFoto tidak akan dapat dikembalikan lagi. Lanjutkan hapus permanen?')) {
             return;
         }
 
+        // 1. Immediately register tombstone & delete locally
         await PhotoStorage.permanentDelete(id);
 
+        // 2. Call server permanent delete
         try {
             await fetch('/api/admin/permanent-delete', {
                 method: 'POST',
@@ -4361,9 +4452,11 @@
                 },
                 body: JSON.stringify({ id: id })
             });
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Permanent delete network notice:", e);
+        }
 
-        showToast('🗑️ Foto telah dihapus secara permanen.', 'info');
+        showToast('🗑️ Foto telah dihapus secara permanen dari server & penyimpanan.', 'info', 3000);
         await loadAdminDashboard();
         await updateGalleryBadge();
     }

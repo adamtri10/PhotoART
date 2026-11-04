@@ -26,10 +26,45 @@ ADMIN_SECRET_TOKEN = f"photoart-admin-{ADMIN_PIN}"
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 DB_FILE = os.path.join(DATA_DIR, "photos_db.json")
+TOMBSTONES_FILE = os.path.join(DATA_DIR, "tombstones.json")
 CUSTOM_FRAMES_DIR = os.path.join(DATA_DIR, "custom_frames")
 CUSTOM_FRAMES_DB = os.path.join(DATA_DIR, "custom_frames_db.json")
 ASSET_FRAMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "frames")
 ASSET_FRAMES_JSON = os.path.join(ASSET_FRAMES_DIR, "frames.json")
+
+def get_tombstones():
+    if os.path.exists(TOMBSTONES_FILE):
+        try:
+            with open(TOMBSTONES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return set(data)
+        except Exception:
+            pass
+    return set()
+
+def add_tombstone(photo_id):
+    if not photo_id:
+        return
+    t_set = get_tombstones()
+    t_set.add(photo_id)
+    try:
+        with open(TOMBSTONES_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(t_set), f, ensure_ascii=False)
+    except Exception:
+        pass
+
+def remove_tombstone(photo_id):
+    if not photo_id:
+        return
+    t_set = get_tombstones()
+    if photo_id in t_set:
+        t_set.remove(photo_id)
+        try:
+            with open(TOMBSTONES_FILE, "w", encoding="utf-8") as f:
+                json.dump(list(t_set), f, ensure_ascii=False)
+        except Exception:
+            pass
 
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 os.makedirs(CUSTOM_FRAMES_DIR, exist_ok=True)
@@ -232,15 +267,21 @@ def save_asset_frames(data):
         print("Error saving frames.json:", e)
 
 def get_db():
+    tombstones = get_tombstones()
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if isinstance(data, list):
+                return [p for p in data if isinstance(p, dict) and p.get("id") and p.get("id") not in tombstones]
     except Exception:
-        return []
+        pass
+    return []
 
 def save_db(data):
+    tombstones = get_tombstones()
+    clean_data = [p for p in data if isinstance(p, dict) and p.get("id") and p.get("id") not in tombstones]
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(clean_data, f, indent=2, ensure_ascii=False)
 
 def get_custom_frames_db():
     try:
@@ -529,6 +570,7 @@ class PhotoArtHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             photo_id = body.get('id')
+            remove_tombstone(photo_id)
             db = get_db()
             found = False
             for p in db:
@@ -555,6 +597,11 @@ class PhotoArtHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             photo_id = body.get('id')
+            if not photo_id:
+                self._send_json(400, {"success": False, "message": "Missing photo id"})
+                return
+
+            add_tombstone(photo_id)
             db = get_db()
             target_record = None
             new_db = []
@@ -574,13 +621,11 @@ class PhotoArtHandler(http.server.SimpleHTTPRequestHandler):
                             os.remove(fpath)
                         except Exception:
                             pass
-                save_db(new_db)
-                self._send_json(200, {
-                    "success": True,
-                    "message": "Foto telah dihapus permanen dari sistem."
-                })
-            else:
-                self._send_json(404, {"success": False, "message": "Foto tidak ditemukan"})
+            save_db(new_db)
+            self._send_json(200, {
+                "success": True,
+                "message": "Foto telah dihapus permanen dari sistem."
+            })
             return
 
         # 6. Upload Custom Frame from Gallery (Admin Only)
