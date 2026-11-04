@@ -706,6 +706,7 @@
         cameraStream: null,
         currentDeviceId: null,
         isSwitchingCamera: false,
+        knownVideoDevices: [],
         facingMode: 'user',
         isMirrored: true,
         flashEnabled: false,
@@ -789,6 +790,8 @@
         btnSetupToggleFlash: document.getElementById('btn-setup-toggle-flash'),
         setupFlashStatusText: document.getElementById('setup-flash-status-text'),
         btnNativeCapture: document.getElementById('btn-native-capture'),
+        nativeCameraInput: document.getElementById('native-camera-input'),
+        btnNativeGallery: document.getElementById('btn-native-gallery'),
         nativeFileInput: document.getElementById('native-file-input'),
         shotCounterText: document.getElementById('shot-counter-text'),
         shotThumbsContainer: document.getElementById('shot-thumbs-container'),
@@ -1859,6 +1862,30 @@
         return { backs, fronts, others };
     }
 
+    function isTrackFront(track) {
+        if (!track) return false;
+        const label = (track.label || '').toLowerCase();
+        if (label.includes('front') || label.includes('user') || label.includes('selfie') || label.includes('depan') || label.includes('facing front')) {
+            return true;
+        }
+        if (label.startsWith('camera 1') || label.startsWith('camera2 1')) {
+            return true;
+        }
+        return false;
+    }
+
+    function isTrackRear(track) {
+        if (!track) return false;
+        const label = (track.label || '').toLowerCase();
+        if (label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang') || label.includes('facing back')) {
+            return true;
+        }
+        if (label.startsWith('camera 0') || label.startsWith('camera2 0')) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * FUNGSI UTAMA: Tangani stream kamera depan / belakang dengan standar WebRTC mobile yang andal
      */
@@ -1866,14 +1893,25 @@
         let stream = null;
         let lastError = null;
 
-        let videoDevices = [];
-        try {
-            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                const all = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = all.filter(d => d.kind === 'videoinput');
+        let videoDevices = state.knownVideoDevices && state.knownVideoDevices.length > 0 
+            ? state.knownVideoDevices 
+            : [];
+
+        if (videoDevices.length === 0 || !videoDevices.some(d => d.label)) {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const all = await navigator.mediaDevices.enumerateDevices();
+                    const v = all.filter(d => d.kind === 'videoinput');
+                    if (v.length > 0) {
+                        videoDevices = v;
+                        if (v.some(d => d.label)) {
+                            state.knownVideoDevices = v;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("enumerateDevices warning:", e);
             }
-        } catch (e) {
-            console.warn("enumerateDevices warning:", e);
         }
 
         const prevId = previousDeviceId || (state.cameraStream && state.cameraStream.getVideoTracks()[0]?.getSettings?.()?.deviceId) || state.currentDeviceId || null;
@@ -1882,80 +1920,155 @@
         if (targetMode === 'environment') {
             // Target: Kamera Belakang (Environment)
             
-            // 1. Jika ada kamera belakang yang terdeteksi secara eksplisit dari enumerateDevices
+            // 1. Jika ada deviceId kamera belakang yang terdeteksi secara eksplisit dari enumerateDevices
             if (backs.length > 0 && backs[0].deviceId) {
-                const targetDevId = backs[0].deviceId;
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            deviceId: { exact: targetDevId },
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    });
-                } catch (e1) {
+                for (const bDev of backs) {
                     try {
-                        stream = await navigator.mediaDevices.getUserMedia({
+                        const candidate = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: { deviceId: targetDevId }
+                            video: {
+                                deviceId: { exact: bDev.deviceId },
+                                width: { ideal: 1920 },
+                                height: { ideal: 1080 }
+                            }
                         });
-                    } catch (e1b) {
-                        lastError = e1b;
+                        if (candidate) {
+                            if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                                stream = candidate;
+                                break;
+                            } else {
+                                candidate.getTracks().forEach(t => t.stop());
+                            }
+                        }
+                    } catch (e1) {
+                        try {
+                            const candidate = await navigator.mediaDevices.getUserMedia({
+                                audio: false,
+                                video: { deviceId: bDev.deviceId }
+                            });
+                            if (candidate) {
+                                if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                                    stream = candidate;
+                                    break;
+                                } else {
+                                    candidate.getTracks().forEach(t => t.stop());
+                                }
+                            }
+                        } catch (e1b) {
+                            lastError = e1b;
+                        }
                     }
                 }
             }
 
-            // 2. Standar WebRTC Mobile: facingMode { ideal: 'environment' } (Paling kompatibel di Android & iOS)
+            // 2. Standar WebRTC Mobile: exact environment (iOS Safari & Android standar)
             if (!stream) {
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({
+                    const candidate = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { exact: 'environment' }
+                        }
+                    });
+                    if (candidate) {
+                        if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                            stream = candidate;
+                        } else {
+                            candidate.getTracks().forEach(t => t.stop());
+                        }
+                    }
+                } catch (e2a) {
+                    lastError = e2a;
+                }
+            }
+
+            // 3. Standar WebRTC Mobile: facingMode: 'environment'
+            if (!stream) {
+                try {
+                    const candidate = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: 'environment'
+                        }
+                    });
+                    if (candidate) {
+                        // KUNCI: Verifikasi apakah browser malah memberikan kamera depan!
+                        if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                            stream = candidate;
+                        } else {
+                            console.warn("Browser returned front camera on 'environment' request. Rejecting candidate...");
+                            candidate.getTracks().forEach(t => t.stop());
+                        }
+                    }
+                } catch (e2b) {
+                    lastError = e2b;
+                }
+            }
+
+            // 4. Cari perangkat kamera yang BUKAN kamera depan sebelumnya (prevId)
+            // Di Android HAL, Camera 0 = Back, Camera 1 = Front
+            if (!stream && videoDevices.length > 1) {
+                const candidates = videoDevices.filter(d => {
+                    const lbl = (d.label || '').toLowerCase();
+                    return (!prevId || d.deviceId !== prevId) &&
+                           !lbl.includes('front') && !lbl.includes('selfie') && !lbl.includes('user') && !lbl.includes('depan') && !lbl.includes('depth');
+                });
+
+                for (const altDev of candidates) {
+                    if (altDev && altDev.deviceId) {
+                        try {
+                            const candidate = await navigator.mediaDevices.getUserMedia({
+                                audio: false,
+                                video: { deviceId: { exact: altDev.deviceId } }
+                            });
+                            if (candidate) {
+                                if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                                    stream = candidate;
+                                    break;
+                                } else {
+                                    candidate.getTracks().forEach(t => t.stop());
+                                }
+                            }
+                        } catch (e3) {
+                            try {
+                                const candidate = await navigator.mediaDevices.getUserMedia({
+                                    audio: false,
+                                    video: { deviceId: altDev.deviceId }
+                                });
+                                if (candidate) {
+                                    if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                                        stream = candidate;
+                                        break;
+                                    } else {
+                                        candidate.getTracks().forEach(t => t.stop());
+                                    }
+                                }
+                            } catch (e3b) {
+                                lastError = e3b;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. Standar WebRTC Mobile: facingMode { ideal: 'environment' }
+            if (!stream) {
+                try {
+                    const candidate = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
                             facingMode: { ideal: 'environment' }
                         }
                     });
-                } catch (e2) {
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            audio: false,
-                            video: {
-                                facingMode: 'environment'
-                            }
-                        });
-                    } catch (e2b) {
-                        try {
-                            // Untuk iOS Safari strict
-                            stream = await navigator.mediaDevices.getUserMedia({
-                                audio: false,
-                                video: {
-                                    facingMode: { exact: 'environment' }
-                                }
-                            });
-                        } catch (e2c) {
-                            lastError = e2c;
+                    if (candidate) {
+                        if (!isTrackFront(candidate.getVideoTracks()[0])) {
+                            stream = candidate;
+                        } else {
+                            candidate.getTracks().forEach(t => t.stop());
                         }
                     }
-                }
-            }
-
-            // 3. Jika belum dapat dan ada perangkat lain yang bukan kamera depan sebelumnya
-            if (!stream && videoDevices.length > 1) {
-                const altDev = videoDevices.find(d => {
-                    const lbl = (d.label || '').toLowerCase();
-                    return (!prevId || d.deviceId !== prevId) &&
-                           !lbl.includes('front') && !lbl.includes('selfie') && !lbl.includes('user') && !lbl.includes('depan') && !lbl.includes('depth');
-                }) || videoDevices.find(d => !prevId || d.deviceId !== prevId);
-
-                if (altDev && altDev.deviceId) {
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            audio: false,
-                            video: { deviceId: altDev.deviceId }
-                        });
-                    } catch (e3) {
-                        lastError = e3;
-                    }
+                } catch (e2c) {
+                    lastError = e2c;
                 }
             }
         } else {
@@ -1985,13 +2098,13 @@
                 }
             }
 
-            // 2. Standar WebRTC: facingMode { ideal: 'user' }
+            // 2. Standar WebRTC: facingMode 'user'
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { ideal: 'user' }
+                            facingMode: { exact: 'user' }
                         }
                     });
                 } catch (e2) {
@@ -2007,7 +2120,7 @@
                             stream = await navigator.mediaDevices.getUserMedia({
                                 audio: false,
                                 video: {
-                                    facingMode: { exact: 'user' }
+                                    facingMode: { ideal: 'user' }
                                 }
                             });
                         } catch (e2c) {
@@ -2068,6 +2181,19 @@
         try {
             await deactivateFlashIllumination();
 
+            // 1. Ambil daftar perangkat kamera SEBELUM mematikan stream aktif,
+            // sehingga label perangkat ("camera2 0, facing back", dsb.) terbaca lengkap oleh browser ponsel!
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devs = await navigator.mediaDevices.enumerateDevices();
+                    const vDevs = devs.filter(d => d.kind === 'videoinput');
+                    if (vDevs.length > 0 && vDevs.some(d => d.label)) {
+                        state.knownVideoDevices = vDevs;
+                    }
+                }
+            } catch(e) {}
+
+            // 2. Hentikan stream yang ada agar hardware sensor di tingkat OS terlepas
             if (state.cameraStream) {
                 try {
                     state.cameraStream.getTracks().forEach(t => t.stop());
@@ -2092,13 +2218,23 @@
             }
             const trackLabel = (track && track.label ? track.label : '').toLowerCase();
 
+            // Perbarui kembali cache perangkat kamera saat stream sedang aktif
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                navigator.mediaDevices.enumerateDevices().then(devs => {
+                    const v = devs.filter(d => d.kind === 'videoinput');
+                    if (v.length > 0 && v.some(d => d.label)) {
+                        state.knownVideoDevices = v;
+                    }
+                }).catch(() => {});
+            }
+
             // Tentukan secara akurat apakah kamera yang aktif adalah belakang atau depan:
             // Prioritaskan nama track label jika ada, lalu requestedMode. Hindari bug Chromium Android crbug.com/978809
             // di mana settings.facingMode melaporkan 'user' meskipun kamera belakang aktif.
             let isRear = false;
-            if (trackLabel.includes('back') || trackLabel.includes('rear') || trackLabel.includes('environment') || trackLabel.includes('belakang') || trackLabel.includes('facing back') || trackLabel.startsWith('camera 0') || trackLabel.startsWith('camera2 0')) {
+            if (isTrackRear(track)) {
                 isRear = true;
-            } else if (trackLabel.includes('front') || trackLabel.includes('user') || trackLabel.includes('selfie') || trackLabel.includes('depan') || trackLabel.includes('facing front') || trackLabel.startsWith('camera 1') || trackLabel.startsWith('camera2 1')) {
+            } else if (isTrackFront(track)) {
                 isRear = false;
             } else if (settings.facingMode === 'environment') {
                 isRear = true;
@@ -2519,11 +2655,37 @@
                 showStep('editor');
             }, 500);
         } else {
-            showToast(`📸 ${state.capturedImages.length} dari ${maxSlots} foto terisi. Ambil atau unggah ${maxSlots - state.capturedImages.length} foto lagi!`, 'info', 3500);
+            showToast(`📸 Foto ${state.capturedImages.length} dari ${maxSlots} tersimpan! Tekan "Buka Kamera HP Langsung" lagi untuk mengambil foto berikutnya (${maxSlots - state.capturedImages.length} slot lagi).`, 'info', 4000);
         }
     }
 
-    function readFileAsOptimizedDataUrl(file) {
+    async function readFileAsOptimizedDataUrl(file) {
+        // Coba createImageBitmap terlebih dahulu (otomatis menangani EXIF orientation pada kamera smartphone)
+        try {
+            if (window.createImageBitmap) {
+                const bmp = await createImageBitmap(file);
+                const maxDim = 1600;
+                let w = bmp.width;
+                let h = bmp.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bmp, 0, 0, w, h);
+                if (typeof bmp.close === 'function') bmp.close();
+                return canvas.toDataURL('image/jpeg', 0.95);
+            }
+        } catch(e) {}
+
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -3796,10 +3958,34 @@
         if (elements.btnToggleFlash) elements.btnToggleFlash.addEventListener('click', () => toggleFlash());
         if (elements.btnSetupToggleFlash) elements.btnSetupToggleFlash.addEventListener('click', () => toggleFlash());
 
-        if (elements.btnNativeCapture && elements.nativeFileInput) {
+        // Penanganan Buka Kamera HP Langsung (Hardware Camera Capture)
+        if (elements.btnNativeCapture) {
             elements.btnNativeCapture.addEventListener('click', () => {
+                if (elements.nativeCameraInput) {
+                    elements.nativeCameraInput.click();
+                } else if (elements.nativeFileInput) {
+                    elements.nativeFileInput.click();
+                }
+            });
+        }
+
+        if (elements.nativeCameraInput) {
+            elements.nativeCameraInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleNativeFiles(Array.from(e.target.files));
+                    e.target.value = '';
+                }
+            });
+        }
+
+        // Penanganan Pilih dari Galeri HP (Multi-select Files)
+        if (elements.btnNativeGallery && elements.nativeFileInput) {
+            elements.btnNativeGallery.addEventListener('click', () => {
                 elements.nativeFileInput.click();
             });
+        }
+
+        if (elements.nativeFileInput) {
             elements.nativeFileInput.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files.length > 0) {
                     handleNativeFiles(Array.from(e.target.files));

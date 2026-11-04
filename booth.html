@@ -303,11 +303,17 @@
                         <button id="btn-capture" class="btn-shutter" type="button" title="Ambil Foto"></button>
                     </div>
 
-                    <div class="native-capture-row" style="width: 100%; display: flex; justify-content: center;">
-                        <button id="btn-native-capture" class="btn-native-file" type="button">
-                            Buka Kamera HP Langsung / Galeri
+                    <div class="native-capture-row" style="width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
+                        <button id="btn-native-capture" class="btn-native-file" type="button" title="Buka aplikasi kamera bawaan ponsel untuk mengambil foto langsung">
+                            <span>📸</span> <span>Buka Kamera HP Langsung</span>
                         </button>
-                        <!-- Hidden native file input with camera capture attribute (supports multiple) -->
+                        <!-- Native camera input: direct hardware camera capture -->
+                        <input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display: none;">
+
+                        <button id="btn-native-gallery" class="btn-native-file" type="button" title="Pilih foto yang tersimpan di galeri ponsel" style="background: rgba(255, 255, 255, 0.06);">
+                            <span>📁</span> <span>Pilih dari Galeri</span>
+                        </button>
+                        <!-- Native file input: multi-select gallery picker -->
                         <input id="native-file-input" type="file" accept="image/*" multiple style="display: none;">
                     </div>
 
