@@ -704,6 +704,8 @@
         stickers: [],
         selectedStickerId: null,
         cameraStream: null,
+        currentDeviceId: null,
+        isSwitchingCamera: false,
         facingMode: 'user',
         isMirrored: true,
         flashEnabled: false,
@@ -1809,7 +1811,7 @@
     /**
      * FUNGSI UTAMA YANG DIPERBAIKI: Tangani stream kamera depan / belakang dengan fleksibel
      */
-    async function acquireCameraStream(targetMode) {
+    async function acquireCameraStream(targetMode, previousDeviceId = null) {
         let stream = null;
         let lastError = null;
 
@@ -1823,50 +1825,93 @@
             console.warn("enumerateDevices warning:", e);
         }
 
-        let currentDeviceId = null;
-        if (state.cameraStream) {
-            const curTracks = state.cameraStream.getVideoTracks();
-            if (curTracks.length > 0 && curTracks[0].getSettings) {
-                currentDeviceId = curTracks[0].getSettings().deviceId;
-            }
-        }
+        const prevId = previousDeviceId || (state.cameraStream && state.cameraStream.getVideoTracks()[0]?.getSettings?.()?.deviceId) || state.currentDeviceId || null;
 
         if (targetMode === 'environment') {
-            // Prioritas 1: Ideal facingMode environment
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                });
-            } catch (errA1) {
-                lastError = errA1;
+            // Filter perangkat kamera belakang
+            const backDevices = videoDevices.filter(d => {
+                const lbl = (d.label || '').toLowerCase();
+                if (lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front')) {
+                    return false;
+                }
+                if (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back')) {
+                    return true;
+                }
+                if (lbl.includes('camera2 0') || lbl.includes('camera 0')) {
+                    return true;
+                }
+                return false;
+            });
+
+            // Prioritaskan sensor belakang utama (bukan macro, depth, tof, ir)
+            let chosenBackDev = backDevices.find(d => {
+                const lbl = (d.label || '').toLowerCase();
+                return !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
+            }) || (backDevices.length > 0 ? backDevices[0] : null);
+
+            // Jika label belum terbaca tapi ada beberapa kamera dan kita tahu ID kamera depan sebelumnya
+            if (!chosenBackDev && videoDevices.length > 1 && prevId) {
+                chosenBackDev = videoDevices.find(d => d.deviceId !== prevId && !d.label.toLowerCase().includes('depth'));
             }
 
-            // Prioritas 2: Deteksi deviceId kamera belakang via enumerateDevices jika ideal gagal
-            if (!stream && videoDevices.length > 0) {
-                let backDev = videoDevices.find(d => {
-                    const lbl = (d.label || '').toLowerCase();
-                    return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back'))
-                        && !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
-                });
-
-                if (!backDev && videoDevices.length > 1 && currentDeviceId) {
-                    backDev = videoDevices.find(d => d.deviceId !== currentDeviceId && !d.label.toLowerCase().includes('depth'));
-                }
-
-                if (backDev && backDev.deviceId) {
+            // 1. Coba deviceId spesifik kamera belakang
+            if (chosenBackDev && chosenBackDev.deviceId) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            deviceId: { exact: chosenBackDev.deviceId },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                } catch (errA1) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: {
-                                deviceId: { exact: backDev.deviceId },
-                                width: { ideal: 1920 },
-                                height: { ideal: 1080 }
-                            }
+                            video: { deviceId: { exact: chosenBackDev.deviceId } }
+                        });
+                    } catch (errA1b) {
+                        lastError = errA1b;
+                    }
+                }
+            }
+
+            // 2. Coba facingMode exact environment
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: { exact: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                } catch (errA2) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: { facingMode: { exact: 'environment' } }
+                        });
+                    } catch (errA2b) {
+                        lastError = errA2b;
+                    }
+                }
+            }
+
+            // 3. Coba perangkat manapun yang berbeda dari ID sebelumnya
+            if (!stream && videoDevices.length > 1) {
+                const altDev = videoDevices.find(d => {
+                    const lbl = (d.label || '').toLowerCase();
+                    return (!prevId || d.deviceId !== prevId) &&
+                           !lbl.includes('front') && !lbl.includes('selfie') && !lbl.includes('user') && !lbl.includes('depth');
+                });
+                if (altDev && altDev.deviceId) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: { deviceId: { exact: altDev.deviceId } }
                         });
                     } catch (errA3) {
                         lastError = errA3;
@@ -1874,64 +1919,123 @@
                 }
             }
 
-            // Prioritas 3: Coba exact facingMode environment
+            // 4. Coba facingMode environment umum dengan verifikasi agar tidak tertipu kamera depan
             if (!stream) {
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({
+                    const candidate = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { exact: 'environment' }
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
                         }
                     });
+                    const cTrack = candidate.getVideoTracks()[0];
+                    const cSettings = cTrack ? (cTrack.getSettings ? cTrack.getSettings() : {}) : {};
+                    const cLabel = (cTrack && cTrack.label ? cTrack.label : '').toLowerCase();
+
+                    const isActuallyFront = (cSettings.facingMode === 'user') ||
+                                            cLabel.includes('front') || cLabel.includes('selfie') || cLabel.includes('user') || cLabel.includes('depan') ||
+                                            (prevId && cSettings.deviceId === prevId);
+
+                    if (isActuallyFront && videoDevices.length > 1) {
+                        candidate.getTracks().forEach(t => t.stop());
+                        const otherDev = videoDevices.find(d => d.deviceId !== cSettings.deviceId && !d.label.toLowerCase().includes('depth'));
+                        if (otherDev) {
+                            try {
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    audio: false,
+                                    video: { deviceId: { exact: otherDev.deviceId } }
+                                });
+                            } catch (errA4b) {}
+                        }
+                    } else {
+                        stream = candidate;
+                    }
                 } catch (errA4) {
                     lastError = errA4;
                 }
             }
         } else {
             // Target: Kamera Depan (User)
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: {
-                        facingMode: { ideal: 'user' },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                });
-            } catch (errB1) {
-                lastError = errB1;
+            const frontDevices = videoDevices.filter(d => {
+                const lbl = (d.label || '').toLowerCase();
+                if (lbl.includes('back') || lbl.includes('rear') || lbl.includes('belakang') || lbl.includes('facing back')) {
+                    return false;
+                }
+                if (lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front')) {
+                    return true;
+                }
+                if (lbl.includes('camera2 1') || lbl.includes('camera 1')) {
+                    return true;
+                }
+                return false;
+            });
+
+            let chosenFrontDev = frontDevices.find(d => !d.label.toLowerCase().includes('depth')) || (frontDevices.length > 0 ? frontDevices[0] : null);
+
+            if (!chosenFrontDev && videoDevices.length > 1 && prevId) {
+                chosenFrontDev = videoDevices.find(d => d.deviceId !== prevId && !d.label.toLowerCase().includes('depth'));
             }
 
-            if (!stream && videoDevices.length > 0) {
-                let frontDev = videoDevices.find(d => {
-                    const lbl = (d.label || '').toLowerCase();
-                    return lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan');
-                });
-
-                if (frontDev && frontDev.deviceId) {
+            // 1. Coba deviceId spesifik kamera depan
+            if (chosenFrontDev && chosenFrontDev.deviceId) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            deviceId: { exact: chosenFrontDev.deviceId },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                } catch (errB1) {
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
                             audio: false,
-                            video: {
-                                deviceId: { exact: frontDev.deviceId },
-                                width: { ideal: 1920 },
-                                height: { ideal: 1080 }
-                            }
+                            video: { deviceId: { exact: chosenFrontDev.deviceId } }
                         });
-                    } catch (errB3) {}
+                    } catch (errB1b) {}
                 }
             }
 
+            // 2. Coba facingMode exact user
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
-                        video: { facingMode: { exact: 'user' } }
+                        video: {
+                            facingMode: { exact: 'user' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
                     });
-                } catch (errB4) {}
+                } catch (errB2) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: false,
+                            video: { facingMode: { exact: 'user' } }
+                        });
+                    } catch (errB2b) {}
+                }
+            }
+
+            // 3. Coba facingMode ideal user
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            facingMode: 'user',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                } catch (errB3) {}
             }
         }
 
+        // Ultimate fallback jika belum dapat
         if (!stream) {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
@@ -1956,6 +2060,7 @@
         }
 
         const requestedMode = targetMode || state.facingMode || 'user';
+        const previousDeviceId = state.currentDeviceId || null;
 
         try {
             await deactivateFlashIllumination();
@@ -1967,9 +2072,10 @@
                 state.cameraStream = null;
             }
 
-            await new Promise(r => setTimeout(r, 180));
+            // Jeda 200ms agar hardware sensor kamera pada ponsel Android/iOS terlepas sempurna
+            await new Promise(r => setTimeout(r, 200));
 
-            const stream = await acquireCameraStream(requestedMode);
+            const stream = await acquireCameraStream(requestedMode, previousDeviceId);
             if (!stream) {
                 throw new Error("Gagal memperoleh stream kamera.");
             }
@@ -1978,10 +2084,26 @@
 
             const track = stream.getVideoTracks()[0];
             const settings = (track && typeof track.getSettings === 'function') ? track.getSettings() : {};
-            const actualFacing = settings.facingMode;
+            if (settings.deviceId) {
+                state.currentDeviceId = settings.deviceId;
+            }
+            const trackLabel = (track && track.label ? track.label : '').toLowerCase();
 
-            // KUNCI PERBAIKAN: Paksa isMirrored = false jika kamera belakang aktif agar tidak terbalik
-            if (requestedMode === 'environment' || actualFacing === 'environment') {
+            // Tentukan secara akurat apakah kamera yang aktif adalah belakang atau depan
+            let isRear = false;
+            if (settings.facingMode === 'environment') {
+                isRear = true;
+            } else if (settings.facingMode === 'user') {
+                isRear = false;
+            } else if (trackLabel.includes('back') || trackLabel.includes('rear') || trackLabel.includes('environment') || trackLabel.includes('belakang') || trackLabel.includes('facing back')) {
+                isRear = true;
+            } else if (trackLabel.includes('front') || trackLabel.includes('user') || trackLabel.includes('selfie') || trackLabel.includes('depan') || trackLabel.includes('facing front')) {
+                isRear = false;
+            } else {
+                isRear = (requestedMode === 'environment');
+            }
+
+            if (isRear) {
                 state.facingMode = 'environment';
                 state.isMirrored = false; 
                 showToast('📷 Kamera Belakang Aktif', 'success', 2000);
@@ -2011,12 +2133,14 @@
                     video.addEventListener('loadeddata', finish, { once: true });
                     video.addEventListener('loadedmetadata', finish, { once: true });
                     video.addEventListener('canplay', finish, { once: true });
-                    setTimeout(finish, 600);
+                    setTimeout(finish, 800);
                 });
 
                 try {
                     await video.play();
-                } catch(pErr) {}
+                } catch(pErr) {
+                    console.warn("Video play notice:", pErr);
+                }
             }
 
             updateMirrorStyle();
@@ -2093,6 +2217,9 @@
         if (state.isSwitchingCamera) return;
         state.isSwitchingCamera = true;
 
+        const switchBtn = elements.btnSwitchCamera || document.getElementById('btn-switch-camera');
+        if (switchBtn) switchBtn.disabled = true;
+
         try {
             await deactivateFlashIllumination();
             const nextMode = (state.facingMode === 'user') ? 'environment' : 'user';
@@ -2104,6 +2231,7 @@
             await startCamera(nextMode);
         } finally {
             state.isSwitchingCamera = false;
+            if (switchBtn) switchBtn.disabled = false;
         }
     }
 
@@ -3864,3 +3992,151 @@
         const fBooth = document.getElementById('footer-btn-booth');
         if (fBooth) {
             fBooth.addEventListener('click', (e) => {
+                if (elements.stepSetup) {
+                    e.preventDefault();
+                    showStep('setup');
+                }
+            });
+        }
+
+        const fGallery = document.getElementById('footer-btn-gallery');
+        if (fGallery) {
+            fGallery.addEventListener('click', (e) => {
+                if (elements.stepGallery) {
+                    e.preventDefault();
+                    showStep('gallery');
+                } else {
+                    window.location.href = 'booth.html?step=gallery';
+                }
+            });
+        }
+
+        const fAdmin = document.getElementById('footer-btn-admin');
+        if (fAdmin) {
+            fAdmin.addEventListener('click', (e) => {
+                if (elements.stepAdmin) {
+                    e.preventDefault();
+                    showStep('admin');
+                } else {
+                    window.location.href = 'admin.html';
+                }
+            });
+        }
+
+        // Editor button to open user gallery
+        if (elements.btnViewInGallery) {
+            elements.btnViewInGallery.addEventListener('click', () => {
+                showStep('gallery');
+            });
+        }
+
+        // User Gallery Dashboard Actions
+        if (elements.btnGalleryNewSession) {
+            elements.btnGalleryNewSession.addEventListener('click', () => {
+                state.capturedImages = [];
+                state.stickers = [];
+                state.selectedStickerId = null;
+                state.currentSessionUploaded = false;
+                state.lastUploadedPhotoId = null;
+                showStep('camera');
+            });
+        }
+
+        if (elements.btnEmptyStartBooth) {
+            elements.btnEmptyStartBooth.addEventListener('click', () => {
+                showStep('setup');
+            });
+        }
+
+        if (elements.btnGalleryRefresh) {
+            elements.btnGalleryRefresh.addEventListener('click', () => {
+                loadUserGallery();
+                showToast('🔄 Galeri foto disegarkan', 'info');
+            });
+        }
+
+        // Admin Media & Recovery Dashboard Actions
+        if (elements.formAdminLogin) {
+            elements.formAdminLogin.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const pin = elements.inputAdminPin ? elements.inputAdminPin.value.trim() : '';
+                handleAdminLogin(pin);
+            });
+        }
+
+        if (elements.btnAdminLogout) {
+            elements.btnAdminLogout.addEventListener('click', handleAdminLogout);
+        }
+
+        if (elements.btnAdminRefresh) {
+            elements.btnAdminRefresh.addEventListener('click', () => {
+                loadAdminDashboard();
+                showToast('🔄 Data media admin disegarkan', 'info');
+            });
+        }
+
+        if (elements.tabBtnFrames) {
+            elements.tabBtnFrames.addEventListener('click', () => {
+                state.adminActiveTab = 'frames';
+                elements.tabBtnFrames.classList.add('active');
+                if (elements.tabBtnTrash) elements.tabBtnTrash.classList.remove('active');
+                if (elements.tabBtnActive) elements.tabBtnActive.classList.remove('active');
+                loadAdminDashboard();
+            });
+        }
+
+        if (elements.tabBtnTrash) {
+            elements.tabBtnTrash.addEventListener('click', () => {
+                state.adminActiveTab = 'trash';
+                elements.tabBtnTrash.classList.add('active');
+                if (elements.tabBtnFrames) elements.tabBtnFrames.classList.remove('active');
+                if (elements.tabBtnActive) elements.tabBtnActive.classList.remove('active');
+                loadAdminDashboard();
+            });
+        }
+
+        if (elements.tabBtnActive) {
+            elements.tabBtnActive.addEventListener('click', () => {
+                state.adminActiveTab = 'active';
+                elements.tabBtnActive.classList.add('active');
+                if (elements.tabBtnFrames) elements.tabBtnFrames.classList.remove('active');
+                if (elements.tabBtnTrash) elements.tabBtnTrash.classList.remove('active');
+                loadAdminDashboard();
+            });
+        }
+
+        // Kotak Kurasi Bingkai Tabs (Semua / Published / Private)
+        const setupCurationFilterBtn = (btn, filterValue) => {
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                state.adminCurationFilter = filterValue;
+                if (elements.btnFilterFramesAll) elements.btnFilterFramesAll.classList.toggle('active', filterValue === 'all');
+                if (elements.btnFilterFramesPub) elements.btnFilterFramesPub.classList.toggle('active', filterValue === 'published');
+                if (elements.btnFilterFramesPriv) elements.btnFilterFramesPriv.classList.toggle('active', filterValue === 'draft');
+                loadAdminFrames(false);
+            });
+        };
+        setupCurationFilterBtn(elements.btnFilterFramesAll, 'all');
+        setupCurationFilterBtn(elements.btnFilterFramesPub, 'published');
+        setupCurationFilterBtn(elements.btnFilterFramesPriv, 'draft');
+
+        // Lightbox Modal Controls
+        if (elements.btnCloseLightbox) {
+            elements.btnCloseLightbox.addEventListener('click', closeLightbox);
+        }
+
+        if (elements.modalLightbox) {
+            elements.modalLightbox.addEventListener('click', (e) => {
+                if (e.target === elements.modalLightbox) {
+                    closeLightbox();
+                }
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
