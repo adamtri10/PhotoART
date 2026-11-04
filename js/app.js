@@ -190,7 +190,6 @@
                         }
                     });
                 }
-                // Apply local overrides in case guest is on the same device/browser
                 baseList.forEach(t => {
                     const tid = String(t.id).toLowerCase();
                     for (const k of Object.keys(localOverrides)) {
@@ -290,7 +289,6 @@
             const currentStatus = targetTheme ? (targetTheme.isPublished !== false) : true;
             const newStatus = (targetStatus !== null) ? Boolean(targetStatus) : !currentStatus;
 
-            // 1. Instant local update on targetTheme, allThemes, and ASSET_FRAMES
             if (targetTheme) {
                 targetTheme.isPublished = newStatus;
             }
@@ -323,7 +321,6 @@
 
             this.themes = (this.allThemes || []).filter(f => f.isPublished !== false);
 
-            // 2. Persist to localStorage
             try {
                 let pubOverrides = {};
                 try {
@@ -354,7 +351,6 @@
 
             window.dispatchEvent(new CustomEvent('photoart:frames_synced', { detail: this.themes }));
 
-            // 3. Send to Server Backend
             try {
                 const headers = {
                     'Content-Type': 'application/json',
@@ -613,7 +609,6 @@
         }
     }
 
-    // Hybrid Client/Server Storage for Photos (Guarantees Vercel Static & Offline Functionality)
     const PhotoStorage = {
         STORAGE_KEY: 'photoart_user_photos_v1',
 
@@ -641,7 +636,6 @@
                 } else {
                     all.unshift(photo);
                 }
-                // Retain recent 40 photos to safely fit within browser storage
                 const trimmed = all.slice(0, 40);
                 localStorage.setItem(this.STORAGE_KEY, JSON.stringify(trimmed));
                 return photo;
@@ -697,32 +691,30 @@
         }
     };
 
-    // Application State
     const state = {
-        currentStep: 'home',                 // 'home', 'setup', 'camera', 'editor', 'gallery', 'admin'
+        currentStep: 'home',
         selectedThemeId: (PhotoFrames.themes && PhotoFrames.themes.length > 0) ? PhotoFrames.themes[0].id : null,
         layoutMode: (PhotoFrames.themes && PhotoFrames.themes.length > 0) ? PhotoFrames.themes[0].layout : 'strip_3',
-        timerDuration: 3,                    // 3s, 5s, 0 (manual)
+        timerDuration: 3,
         currentShotIndex: 0,
-        capturedImages: [],                  // Array of Image/Canvas/DataURL
-        selectedFilter: 'normal',            // Current active filter
+        capturedImages: [],
+        selectedFilter: 'normal',
         frameHeader: '',
         frameSubtitle: '',
-        stickers: [],                        // Array of { id, type, emoji, x, y, size, rotation }
-        selectedStickerId: null,             // Currently active sticker for adjustment
+        stickers: [],
+        selectedStickerId: null,
         cameraStream: null,
-        facingMode: 'user',                  // 'user' or 'environment'
+        facingMode: 'user',
         isMirrored: true,
-        flashEnabled: false,                 // Camera flash mode (true / false)
-        isFlashIlluminating: false,          // Active flash illumination state
+        flashEnabled: false,
+        isFlashIlluminating: false,
         isCountingDown: false,
         audioCtx: null,
-        pendingUploadFrame: null,            // Temp data for custom frame modal
+        pendingUploadFrame: null,
 
-        // Gallery & Admin Management
         adminToken: sessionStorage.getItem('photoart_admin_token') || localStorage.getItem('photoart_admin_token') || '',
-        adminActiveTab: 'frames',            // 'frames', 'trash', or 'active'
-        adminCurationFilter: 'all',          // 'all', 'published', or 'draft'
+        adminActiveTab: 'frames',
+        adminCurationFilter: 'all',
         currentSessionUploaded: false,
         lastUploadedPhotoId: null,
         isUploading: false
@@ -730,7 +722,6 @@
 
     window.photoartState = state;
 
-    // DOM Elements
     const elements = {
         stepHome: document.getElementById('step-home'),
         stepSetup: document.getElementById('step-setup'),
@@ -740,7 +731,6 @@
         stepAdmin: document.getElementById('step-admin'),
         studioStepTrackerWrapper: document.querySelector('.step-tracker-wrapper'),
 
-        // Header Navigation Links
         btnNavHome: document.getElementById('btn-nav-home'),
         btnNavBooth: document.getElementById('btn-nav-booth'),
         btnNavGallery: document.getElementById('btn-nav-gallery'),
@@ -748,16 +738,13 @@
         headerGalleryBadge: document.getElementById('header-gallery-badge'),
         brandHomeLink: document.getElementById('brand-home-link'),
 
-        // Homepage CTAs
         btnHeroStart: document.getElementById('btn-hero-start'),
         btnBottomStart: document.getElementById('btn-bottom-start'),
         btnHeroScroll: document.getElementById('btn-hero-scroll'),
 
-        // Step 1: Frames & Setup
         framesSelectionGrid: document.getElementById('frames-selection-grid'),
         btnStartBooth: document.getElementById('btn-start-booth'),
 
-        // Admin Frame Management Elements
         inputFrameUpload: document.getElementById('input-admin-frame-upload') || document.getElementById('input-frame-upload'),
         btnTriggerUploadFrame: document.getElementById('btn-admin-upload-frame') || document.getElementById('btn-trigger-upload-frame'),
         statTotalFrames: document.getElementById('stat-total-frames'),
@@ -768,7 +755,6 @@
         adminFramesGrid: document.getElementById('admin-frames-grid'),
         adminFramesEmpty: document.getElementById('admin-frames-empty'),
 
-        // Kotak Kurasi Filter & Badges
         btnFilterFramesAll: document.getElementById('btn-filter-frames-all'),
         btnFilterFramesPub: document.getElementById('btn-filter-frames-pub'),
         btnFilterFramesPriv: document.getElementById('btn-filter-frames-priv'),
@@ -776,7 +762,6 @@
         countCurationPub: document.getElementById('count-curation-pub'),
         countCurationPriv: document.getElementById('count-curation-priv'),
 
-        // Modal Frame Setup
         modalFrameSetup: document.getElementById('modal-frame-setup'),
         btnCloseFrameSetup: document.getElementById('btn-close-frame-setup'),
         btnCancelFrameSetup: document.getElementById('btn-cancel-frame-setup'),
@@ -785,7 +770,6 @@
         frameSetupAspectBadge: document.getElementById('frame-setup-aspect-badge'),
         frameSetupName: document.getElementById('frame-setup-name'),
 
-        // Step 2: Camera Feed
         video: document.getElementById('camera-video'),
         cameraFeedContainer: document.getElementById('camera-feed-container'),
         screenFlashIlluminator: document.getElementById('screen-flash-illuminator'),
@@ -812,7 +796,6 @@
         activeFilterName: document.getElementById('active-filter-name'),
         btnProceedToEditor: document.getElementById('btn-proceed-to-editor'),
 
-        // Step 3: Editor
         canvasPreview: document.getElementById('canvas-preview'),
         themesContainer: document.getElementById('themes-container'),
         editorFiltersContainer: document.getElementById('editor-filters-container'),
@@ -821,7 +804,6 @@
         stickersContainer: document.getElementById('stickers-container'),
         btnClearStickers: document.getElementById('btn-clear-stickers'),
 
-        // Sticker Controller
         stickerControllerPanel: document.getElementById('sticker-controller-panel'),
         btnDeleteSelectedSticker: document.getElementById('btn-delete-selected-sticker'),
         btnStickerBigger: document.getElementById('btn-sticker-bigger'),
@@ -836,7 +818,6 @@
         btnPrintFinal: document.getElementById('btn-print-final'),
         btnRetakeAll: document.getElementById('btn-retake-all'),
 
-        // Step 4: User Gallery Dashboard
         userGalleryGrid: document.getElementById('user-gallery-grid'),
         userGalleryEmpty: document.getElementById('user-gallery-empty'),
         userGalleryCount: document.getElementById('user-gallery-count'),
@@ -844,7 +825,6 @@
         btnGalleryRefresh: document.getElementById('btn-gallery-refresh'),
         btnEmptyStartBooth: document.getElementById('btn-empty-start-booth'),
 
-        // Step 5: Admin Media & Recovery
         adminLoginCard: document.getElementById('admin-login-card'),
         formAdminLogin: document.getElementById('form-admin-login'),
         inputAdminPin: document.getElementById('input-admin-pin'),
@@ -863,7 +843,6 @@
         adminMediaGrid: document.getElementById('admin-media-grid'),
         adminMediaEmpty: document.getElementById('admin-media-empty'),
 
-        // Modals & Floating UI
         modalLightbox: document.getElementById('modal-lightbox'),
         btnCloseLightbox: document.getElementById('btn-close-lightbox'),
         lightboxImg: document.getElementById('lightbox-img'),
@@ -882,11 +861,7 @@
         toastEl: document.getElementById('photoart-toast')
     };
 
-    /**
-     * Initialize Application
-     */
     async function init() {
-        // 1. Muat cache frame dari localStorage terlebih dahulu
         PhotoFrames.loadCustomThemes();
 
         if (PhotoFrames.themes.length > 0) {
@@ -904,7 +879,6 @@
         if (elements.inputHeader) elements.inputHeader.value = state.frameHeader;
         if (elements.inputSubtitle) elements.inputSubtitle.value = state.frameSubtitle;
 
-        // Build UI elements
         populateFramesSelection();
         initCustomFrameUpload();
         populateCameraFilters();
@@ -914,17 +888,14 @@
         setupCategoryFilter();
         setupStepTrackerNavigation();
 
-        // Bind Events
         bindEvents();
         updateFlashUI();
         initStickerCanvasInteraction();
 
-        // Check URL parameters for direct deep-linking (e.g. ?preview=... or ?step=...)
         const urlParams = new URLSearchParams(window.location.search);
         const previewParam = urlParams.get('preview');
         const stepParam = urlParams.get('step');
 
-        // Multi-page routing: Homepage (index.html), User Booth (booth.html), Operator (admin.html)
         if (elements.stepHome) {
             showStep('home');
         } else if (elements.stepAdmin && !elements.stepSetup) {
@@ -944,13 +915,9 @@
             showStep('home');
         }
 
-        // Setup QR code for current URL
         setupShareBarcode();
-
-        // Check & display initial gallery badge count
         updateGalleryBadge();
 
-        // Listen for authoritative frame sync events (baik saat pertama buka atau update admin)
         window.addEventListener('photoart:frames_synced', (e) => {
             const syncedThemes = e.detail || PhotoFrames.themes;
             const currentUrlParams = new URLSearchParams(window.location.search);
@@ -961,7 +928,6 @@
                 if (!state.selectedThemeId || !syncedThemes.some(t => t.id === state.selectedThemeId)) {
                     selectTheme(syncedThemes[0].id);
                 } else {
-                    // Refresh data tema aktif (termasuk update slot grid) dari server
                     selectTheme(state.selectedThemeId);
                 }
             } else {
@@ -974,7 +940,6 @@
             }
         });
 
-        // Auto-sync bingkai dari server saat layar aktif / tab difokuskan
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 PhotoFrames.syncWithServer();
@@ -982,14 +947,12 @@
             }
         });
 
-        // Polling berkala (setiap 12 detik) agar HP pengunjung selalu sinkron secara live dengan bingkai Admin
         setInterval(() => {
             if (!document.hidden) {
                 PhotoFrames.syncWithServer();
             }
         }, 12000);
 
-        // Sinkronisasi lintas tab real-time saat status publish diubah oleh operator di tab sebelah
         window.addEventListener('storage', (e) => {
             if (e.key === 'photoart_frame_publish_overrides' || e.key === 'photoart_custom_frames') {
                 PhotoFrames.loadCustomThemes();
@@ -1001,7 +964,6 @@
             }
         });
 
-        // 2. Sync langsung ke server backend untuk memastikan data bingkai Admin terbaru
         try {
             await PhotoFrames.syncWithServer();
             const currentUrlParams = new URLSearchParams(window.location.search);
@@ -1018,16 +980,11 @@
         }
     }
 
-    /**
-     * Populate Step 1: Visual Frame Selection Cards for Users
-     * (Menampilkan frame yang telah diunggah dan disiapkan oleh Admin)
-     */
     function populateFramesSelection() {
         if (!elements.framesSelectionGrid) return;
         elements.framesSelectionGrid.innerHTML = '';
 
         if (!PhotoFrames.themes || PhotoFrames.themes.length === 0) {
-            // Tampilan jika belum ada frame yang diterbitkan
             const emptyBox = document.createElement('div');
             emptyBox.className = 'frames-empty-box';
             emptyBox.innerHTML = `
@@ -1039,12 +996,10 @@
             return;
         }
 
-        // Pastikan frame yang dipilih valid
         if (!state.selectedThemeId || !PhotoFrames.themes.some(t => t.id === state.selectedThemeId)) {
             selectTheme(PhotoFrames.themes[0].id);
         }
 
-        // Tampilkan kartu-kartu bingkai siap pakai dari Admin
         PhotoFrames.themes.forEach(theme => {
             const card = document.createElement('div');
             card.className = 'frame-select-card custom-frame-card' + (state.selectedThemeId === theme.id ? ' selected' : '');
@@ -1068,7 +1023,6 @@
                 </div>
             `;
 
-            // Klik kartu untuk memilih bingkai
             card.addEventListener('click', () => {
                 selectTheme(theme.id);
             });
@@ -1087,13 +1041,11 @@
         if (elements.inputHeader) elements.inputHeader.value = state.frameHeader;
         if (elements.inputSubtitle) elements.inputSubtitle.value = state.frameSubtitle;
 
-        // Reset any existing shots if layout slot count changes
         const layoutConfig = PhotoFrames.getLayoutConfig(state.layoutMode, 840, null, theme);
         if (state.capturedImages.length > layoutConfig.count) {
             state.capturedImages = state.capturedImages.slice(0, layoutConfig.count);
         }
 
-        // Update selected cards in Step 1
         document.querySelectorAll('.frame-select-card').forEach(el => {
             const isSel = el.getAttribute('data-theme-id') === themeId;
             el.classList.toggle('selected', isSel);
@@ -1111,12 +1063,10 @@
             }
         });
 
-        // Update badge in camera
         if (elements.cameraCurrentFrameBadge) {
             elements.cameraCurrentFrameBadge.innerHTML = `🎞️ Bingkai: <strong>${theme.name}</strong> <span style="opacity: 0.8; font-size: 10px;">(${theme.layoutLabel})</span>`;
         }
 
-        // Update editor theme chips
         document.querySelectorAll('.theme-chip').forEach(el => {
             el.classList.toggle('active', el.getAttribute('data-theme-id') === themeId);
         });
@@ -1128,9 +1078,6 @@
         }
     }
 
-    /**
-     * Handler Upload Frame dari Galeri & Modal Konfigurasi
-     */
     function initCustomFrameUpload() {
         if (elements.btnTriggerUploadFrame) {
             elements.btnTriggerUploadFrame.addEventListener('click', () => {
@@ -1206,7 +1153,6 @@
                 const optimizedDataUrl = offCanvas.toDataURL('image/png');
                 const aspectRatio = w / h;
 
-                // 1. Deteksi cerdas grid slot foto langsung dari gambar (otomatis mendeteksi Canva / Twibbon / lubang)
                 const detected = PhotoFrames.detectSlots(img);
 
                 let layout = 'strip_3';
@@ -1222,7 +1168,6 @@
                     layout = 'custom_auto_' + detected.count;
                     layoutLabel = `${detected.count} Foto (Sesuai Grid Bingkai)`;
                 } else {
-                    // Fallback otomatis berdasarkan rasio aspek jika tidak ada lubang/placeholder khusus
                     if (aspectRatio < 0.45) {
                         layout = 'strip_3';
                         layoutLabel = '3 Foto (Strip Vertikal)';
@@ -1251,7 +1196,7 @@
                     subTextColor: '#71717a',
                     borderColor: '#e4e4e7',
                     isCustom: true,
-                    isPublished: false, // Default tersimpan sebagai Draft di dashboard Admin
+                    isPublished: false,
                     hasAlphaHoles: hasAlphaHoles,
                     renderMode: renderMode,
                     detectedSlots: detectedSlots,
@@ -1266,7 +1211,7 @@
                 };
 
                 try {
-                    const saveRes = await PhotoFrames.addCustomTheme(newTheme, state.adminToken);
+                    await PhotoFrames.addCustomTheme(newTheme, state.adminToken);
                     loadAdminFrames();
 
                     showToast(`✨ Bingkai "${cleanName}" berhasil disimpan sebagai DRAFT di Dashboard Admin. Klik tombol "Publish untuk Pengunjung" saat Anda siap menampilkannya.`, 'success', 5000);
@@ -1359,9 +1304,6 @@
         }
     }
 
-    /**
-     * Populate Live Filter Chips for the Camera View (Capture Screen) with Realistic Face Thumbnails
-     */
     function populateCameraFilters() {
         if (!elements.cameraFiltersContainer) return;
         elements.cameraFiltersContainer.innerHTML = '';
@@ -1385,9 +1327,6 @@
         });
     }
 
-    /**
-     * Populate Filter Chips for the Editor View with Realistic Face Thumbnails
-     */
     function populateEditorFilters() {
         if (!elements.editorFiltersContainer) return;
         elements.editorFiltersContainer.innerHTML = '';
@@ -1437,9 +1376,6 @@
         }
     }
 
-    /**
-     * Populate Themes in Editor View
-     */
     function populateEditorThemes() {
         if (!elements.themesContainer) return;
         elements.themesContainer.innerHTML = '';
@@ -1464,13 +1400,9 @@
         });
     }
 
-    /**
-     * User Device & Privacy Session Management
-     */
     function getOrCreateUserId() {
         let uid = localStorage.getItem('photoart_user_id');
         if (!uid || uid === 'user_guest' || uid === 'null' || uid === 'undefined' || uid.length < 5) {
-            // Generate a secure, unique user identifier for this smartphone / device
             const timestamp = Date.now().toString(36);
             const randPart = (typeof crypto !== 'undefined' && crypto.randomUUID) 
                 ? crypto.randomUUID().replace(/-/g, '').substring(0, 10) 
@@ -1481,21 +1413,14 @@
         return uid;
     }
 
-    /**
-     * Stickers palette with Curated Expressions, Sparkles, Pets, and Studio Accents
-     */
     function populateStickers() {
         if (!elements.stickersContainer) return;
         elements.stickersContainer.innerHTML = '';
 
         const stickersList = [
-            // Row 1: Sparkles & Aesthetic Accents
             '✨', '⭐', '💫', '⚡', '🔥', '👑', '🕶️', '🎀',
-            // Row 2: Cute Hearts & Expressions
             '💖', '💝', '🥰', '😎', '🥳', '🤩', '✌️', '🫶',
-            // Row 3: Studio & Fun Vibes
             '📸', '🎞️', '🎬', '☕', '🧁', '🎉', '🎈', '💋',
-            // Row 4: Pets & Nature
             '🐱', '🐶', '🐰', '🐼', '🌸', '🍀', '🌈', '🦋'
         ];
 
@@ -1608,9 +1533,6 @@
         renderCanvas();
     }
 
-    /**
-     * Direct Touch & Mouse Interaction on Canvas for Stickers
-     */
     function initStickerCanvasInteraction() {
         const canvas = elements.canvasPreview;
         if (!canvas) return;
@@ -1691,9 +1613,6 @@
         window.addEventListener('touchend', onPointerUp);
     }
 
-    /**
-     * Audio Synthesizer
-     */
     function getAudioContext() {
         if (!state.audioCtx) {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -1721,9 +1640,7 @@
             gain.connect(ctx.destination);
             osc.start();
             osc.stop(ctx.currentTime + 0.16);
-        } catch (e) {
-            // Audio policy fallback
-        }
+        } catch (e) {}
     }
 
     function playShutter() {
@@ -1745,14 +1662,9 @@
             noise.connect(filter);
             filter.connect(ctx.destination);
             noise.start();
-        } catch (e) {
-            // Audio policy fallback
-        }
+        } catch (e) {}
     }
 
-    /**
-     * Step Navigation
-     */
     function showStep(stepName) {
         state.currentStep = stepName;
 
@@ -1763,22 +1675,18 @@
         if (elements.stepGallery) elements.stepGallery.classList.toggle('active', stepName === 'gallery');
         if (elements.stepAdmin) elements.stepAdmin.classList.toggle('active', stepName === 'admin');
 
-        // Toggle full white background for Homepage
         document.body.classList.toggle('view-mode-home', stepName === 'home');
 
-        // Header Navigation Pill Highlighting
         const isBooth = (stepName === 'setup' || stepName === 'camera' || stepName === 'editor');
         if (elements.btnNavHome) elements.btnNavHome.classList.toggle('active', stepName === 'home');
         if (elements.btnNavBooth) elements.btnNavBooth.classList.toggle('active', isBooth);
         if (elements.btnNavGallery) elements.btnNavGallery.classList.toggle('active', stepName === 'gallery');
         if (elements.btnNavAdmin) elements.btnNavAdmin.classList.toggle('active', stepName === 'admin');
 
-        // Studio Step Tracker (01 PILIH ➔ 02 FOTO ➔ 03 CETAK)
         if (elements.studioStepTrackerWrapper) {
             elements.studioStepTrackerWrapper.style.display = isBooth ? 'block' : 'none';
         }
 
-        // Update Step Tracker Items
         document.querySelectorAll('.studio-step-tracker .step-track-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('data-step-target') === stepName);
         });
@@ -1833,9 +1741,6 @@
         }
     }
 
-    /**
-     * Interactive Scroll & Reveal Animations for Homepage
-     */
     function initHomeScrollObserver() {
         const revealElements = document.querySelectorAll('.home-reveal');
         if (!revealElements || revealElements.length === 0) return;
@@ -1858,9 +1763,6 @@
         }
     }
 
-    /**
-     * Category Filter for Frames
-     */
     function setupCategoryFilter() {
         const filterBar = document.getElementById('category-filter-bar');
         if (!filterBar) return;
@@ -1883,9 +1785,6 @@
         });
     }
 
-    /**
-     * Studio Step Tracker Click Navigation
-     */
     function setupStepTrackerNavigation() {
         const items = document.querySelectorAll('.studio-step-tracker .step-track-item');
         items.forEach(item => {
@@ -1908,13 +1807,12 @@
     }
 
     /**
-     * Camera Handling with Robust Mobile Switching (Front <-> Rear)
+     * FUNGSI UTAMA YANG DIPERBAIKI: Tangani stream kamera depan / belakang dengan fleksibel
      */
     async function acquireCameraStream(targetMode) {
         let stream = null;
         let lastError = null;
 
-        // 1. Dapatkan daftar device kamera (jika browser mengizinkan enumerateDevices)
         let videoDevices = [];
         try {
             if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -1925,7 +1823,6 @@
             console.warn("enumerateDevices warning:", e);
         }
 
-        // Cari ID kamera yang sedang aktif saat ini
         let currentDeviceId = null;
         if (state.cameraStream) {
             const curTracks = state.cameraStream.getVideoTracks();
@@ -1935,54 +1832,28 @@
         }
 
         if (targetMode === 'environment') {
-            // ============================================
-            // TARGET: KAMERA BELAKANG (REAR CAMERA)
-            // ============================================
-
-            // A1: Standar W3C paling kuat - exact facingMode environment dengan resolusi HD
+            // Prioritas 1: Ideal facingMode environment
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: false,
                     video: {
-                        facingMode: { exact: 'environment' },
+                        facingMode: { ideal: 'environment' },
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
                     }
                 });
             } catch (errA1) {
                 lastError = errA1;
-                // A2: Coba exact facingMode tanpa batasan resolusi (untuk sensor dengan rasio khusus)
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            facingMode: { exact: 'environment' }
-                        }
-                    });
-                } catch (errA2) {
-                    lastError = errA2;
-                }
             }
 
-            // A3: Jika exact ditolak (misal bug WebView/Android), deteksi deviceId kamera belakang via enumerateDevices
+            // Prioritas 2: Deteksi deviceId kamera belakang via enumerateDevices jika ideal gagal
             if (!stream && videoDevices.length > 0) {
-                // Cari kamera belakang utama (hindari sensor depth, tof, ir, macro, virtual)
                 let backDev = videoDevices.find(d => {
                     const lbl = (d.label || '').toLowerCase();
-                    return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back') || lbl.includes('0, facing back'))
-                        && !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir') && !lbl.includes('virtual');
+                    return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('environment') || lbl.includes('belakang') || lbl.includes('facing back'))
+                        && !lbl.includes('ultra') && !lbl.includes('tele') && !lbl.includes('macro') && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
                 });
 
-                // Jika filter ketat tidak ketemu, cari device berlabel belakang apa pun yang bukan depth/tof
-                if (!backDev) {
-                    backDev = videoDevices.find(d => {
-                        const lbl = (d.label || '').toLowerCase();
-                        return (lbl.includes('back') || lbl.includes('rear') || lbl.includes('belakang') || lbl.includes('environment'))
-                            && !lbl.includes('depth') && !lbl.includes('tof') && !lbl.includes('ir');
-                    });
-                }
-
-                // Jika label device kosong (belum berizin/anonim) tapi ada lebih dari 1 kamera, pilih yang bukan kamera saat ini
                 if (!backDev && videoDevices.length > 1 && currentDeviceId) {
                     backDev = videoDevices.find(d => d.deviceId !== currentDeviceId && !d.label.toLowerCase().includes('depth'));
                 }
@@ -2003,15 +1874,13 @@
                 }
             }
 
-            // A4: Fallback ideal facingMode environment jika exact tidak didukung
+            // Prioritas 3: Coba exact facingMode environment
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
                         video: {
-                            facingMode: { ideal: 'environment' },
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
+                            facingMode: { exact: 'environment' }
                         }
                     });
                 } catch (errA4) {
@@ -2019,44 +1888,25 @@
                 }
             }
         } else {
-            // ============================================
-            // TARGET: KAMERA DEPAN (FRONT / SELFIE CAMERA)
-            // ============================================
-
-            // B1: Standar W3C exact facingMode user
+            // Target: Kamera Depan (User)
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: false,
                     video: {
-                        facingMode: { exact: 'user' },
+                        facingMode: { ideal: 'user' },
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
                     }
                 });
             } catch (errB1) {
                 lastError = errB1;
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
-                        video: {
-                            facingMode: { exact: 'user' }
-                        }
-                    });
-                } catch (errB2) {
-                    lastError = errB2;
-                }
             }
 
-            // B2: Deteksi deviceId kamera depan
             if (!stream && videoDevices.length > 0) {
                 let frontDev = videoDevices.find(d => {
                     const lbl = (d.label || '').toLowerCase();
-                    return lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan') || lbl.includes('facing front');
+                    return lbl.includes('front') || lbl.includes('user') || lbl.includes('selfie') || lbl.includes('depan');
                 });
-
-                if (!frontDev && videoDevices.length > 1 && currentDeviceId) {
-                    frontDev = videoDevices.find(d => d.deviceId !== currentDeviceId);
-                }
 
                 if (frontDev && frontDev.deviceId) {
                     try {
@@ -2068,34 +1918,23 @@
                                 height: { ideal: 1080 }
                             }
                         });
-                    } catch (errB3) {
-                        lastError = errB3;
-                    }
+                    } catch (errB3) {}
                 }
             }
 
-            // B3: Fallback ideal user
             if (!stream) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
-                        video: {
-                            facingMode: { ideal: 'user' }
-                        }
+                        video: { facingMode: { exact: 'user' } }
                     });
-                } catch (errB4) {
-                    lastError = errB4;
-                }
+                } catch (errB4) {}
             }
         }
 
-        // C: Fallback darurat kamera apa pun yang tersedia
         if (!stream) {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: true
-                });
+                stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
             } catch (errC) {
                 throw lastError || errC || new Error("Tidak dapat mengakses kamera perangkat.");
             }
@@ -2119,10 +1958,8 @@
         const requestedMode = targetMode || state.facingMode || 'user';
 
         try {
-            // 1. Matikan flash / lampu LED
             await deactivateFlashIllumination();
 
-            // 2. Hentikan track kamera sebelumnya secara bersih
             if (state.cameraStream) {
                 try {
                     state.cameraStream.getTracks().forEach(t => t.stop());
@@ -2130,10 +1967,8 @@
                 state.cameraStream = null;
             }
 
-            // 3. Jeda jeda pelepasan hardware lock kamera pada chipset smartphone (180ms)
             await new Promise(r => setTimeout(r, 180));
 
-            // 4. Peroleh stream kamera baru
             const stream = await acquireCameraStream(requestedMode);
             if (!stream) {
                 throw new Error("Gagal memperoleh stream kamera.");
@@ -2141,30 +1976,21 @@
 
             state.cameraStream = stream;
 
-            // 5. Analisis hardware yang sebenarnya diperoleh dari browser
             const track = stream.getVideoTracks()[0];
             const settings = (track && typeof track.getSettings === 'function') ? track.getSettings() : {};
             const actualFacing = settings.facingMode;
 
-            if (requestedMode === 'environment') {
-                if (actualFacing === 'user') {
-                    // Browser mengembalikan kamera depan (perangkat tidak memiliki kamera belakang fisik)
-                    state.facingMode = 'user';
-                    state.isMirrored = true;
-                    showToast('ℹ️ Perangkat hanya memiliki kamera depan / webcam.', 'info', 2800);
-                } else {
-                    // Berhasil membuka kamera belakang
-                    state.facingMode = 'environment';
-                    state.isMirrored = false;
-                    showToast('📷 Kamera Belakang Aktif' + (state.flashEnabled ? ' (Flash LED siap)' : ''), 'success', 2200);
-                }
+            // KUNCI PERBAIKAN: Paksa isMirrored = false jika kamera belakang aktif agar tidak terbalik
+            if (requestedMode === 'environment' || actualFacing === 'environment') {
+                state.facingMode = 'environment';
+                state.isMirrored = false; 
+                showToast('📷 Kamera Belakang Aktif', 'success', 2000);
             } else {
                 state.facingMode = 'user';
                 state.isMirrored = true;
-                showToast('🤳 Kamera Depan Aktif' + (state.flashEnabled ? ' (Flash Layar siap)' : ''), 'success', 2200);
+                showToast('🤳 Kamera Depan Aktif', 'success', 2000);
             }
 
-            // 6. Hubungkan ke elemen video tanpa jeda layar hitam
             const video = elements.video;
             if (video) {
                 video.srcObject = null;
@@ -2174,7 +2000,6 @@
                 video.playsInline = true;
                 video.srcObject = stream;
 
-                // Tunggu hingga metadata / frame siap sebelum diputar
                 await new Promise(resolve => {
                     let resolved = false;
                     const finish = () => {
@@ -2191,9 +2016,7 @@
 
                 try {
                     await video.play();
-                } catch(pErr) {
-                    console.warn("video.play() warning:", pErr);
-                }
+                } catch(pErr) {}
             }
 
             updateMirrorStyle();
@@ -2236,7 +2059,6 @@
 
     function updateMirrorStyle() {
         if (!elements.video) return;
-        // Hanya cerminkan jika kamera depan (user) dan mode cermin aktif
         if (state.facingMode === 'user' && state.isMirrored) {
             elements.video.style.transform = 'scaleX(-1)';
         } else {
@@ -2251,7 +2073,6 @@
         const mirrorBtn = elements.btnToggleMirror || document.getElementById('btn-toggle-mirror');
 
         if (switchLabel) {
-            // Tampilkan tombol tujuan: jika saat ini depan, tawarkan ganti ke Belakang
             switchLabel.textContent = (state.facingMode === 'environment') ? 'Depan' : 'Belakang';
         }
         if (switchBtn) {
@@ -2286,9 +2107,6 @@
         }
     }
 
-    /**
-     * Mobile Flash & Torch Handling (Front Retina Screen Flash & Rear Hardware LED Flash)
-     */
     async function setHardwareTorch(enable) {
         if (!state.cameraStream) return false;
         const tracks = state.cameraStream.getVideoTracks();
@@ -2302,9 +2120,7 @@
                 });
                 return true;
             }
-        } catch (err) {
-            console.warn("Hardware torch error:", err);
-        }
+        } catch (err) {}
         return false;
     }
 
@@ -2312,16 +2128,12 @@
         if (state.isFlashIlluminating) return;
         state.isFlashIlluminating = true;
 
-        // 1. Rear camera: Nyalakan lampu senter / LED fisik ponsel jika didukung
         if (state.facingMode === 'environment') {
             try {
                 await setHardwareTorch(true);
-            } catch (e) {
-                // Torch fallback
-            }
+            } catch (e) {}
         }
 
-        // 2. High-intensity Screen Flash Illuminator (Retina Flash untuk kamera depan/selfie & booster)
         const illuminator = elements.screenFlashIlluminator || document.getElementById('screen-flash-illuminator');
         if (illuminator) {
             illuminator.classList.add('active');
@@ -2331,14 +2143,10 @@
     async function deactivateFlashIllumination() {
         state.isFlashIlluminating = false;
 
-        // 1. Matikan lampu LED fisik
         try {
             await setHardwareTorch(false);
-        } catch (e) {
-            // Torch fallback
-        }
+        } catch (e) {}
 
-        // 2. Redupkan / matikan screen illuminator
         const illuminator = elements.screenFlashIlluminator || document.getElementById('screen-flash-illuminator');
         if (illuminator) {
             illuminator.classList.remove('active');
@@ -2404,9 +2212,6 @@
         }
     }
 
-    /**
-     * Capture Workflow
-     */
     function triggerCapture() {
         if (state.isCountingDown) return;
         getAudioContext();
@@ -2447,8 +2252,6 @@
                 }
                 playBeep(false);
 
-                // Jika flash aktif dan countdown mencapai 1 detik terakhir:
-                // Pre-aktivasi penerangan flash 450ms sebelum jepret agar sensor kamera ponsel menyesuaikan eksposur cahaya!
                 if (state.flashEnabled && remaining === 1) {
                     setTimeout(async () => {
                         if (state.isCountingDown && state.flashEnabled) {
@@ -2467,13 +2270,11 @@
     }
 
     async function doSnap() {
-        // Jika flash aktif dan belum pre-iluminasi (misal mode manual tanpa timer), aktifkan sekarang & tunggu adaptasi sensor
         if (state.flashEnabled && !state.isFlashIlluminating) {
             await activateFlashIllumination();
             await new Promise(r => setTimeout(r, 220));
         }
 
-        // Viewfinder shutter burst & efek audio
         if (elements.flashOverlay) {
             elements.flashOverlay.classList.remove('active');
             void elements.flashOverlay.offsetWidth;
@@ -2486,7 +2287,6 @@
         const vW = elements.video.videoWidth || 640;
         const vH = elements.video.videoHeight || 480;
 
-        // WYSIWYG Viewfinder Framing: Tangkap persis framing yang dilihat pengguna di layar
         const cW = elements.cameraFeedContainer ? elements.cameraFeedContainer.clientWidth : vW;
         const cH = elements.cameraFeedContainer ? elements.cameraFeedContainer.clientHeight : vH;
         const targetAspect = (cW && cH) ? (cW / cH) : (vW / vH);
@@ -2498,11 +2298,9 @@
         let cropY = 0;
 
         if (videoAspect > targetAspect) {
-            // Video lebih lebar daripada kontainer viewfinder (misal video 16:9 di layar 4:3)
             cropW = vH * targetAspect;
             cropX = (vW - cropW) / 2;
         } else if (videoAspect < targetAspect) {
-            // Video lebih tinggi daripada kontainer viewfinder (misal portrait smartphone 9:16)
             cropH = vW / targetAspect;
             cropY = (vH - cropH) / 2;
         }
@@ -2521,7 +2319,6 @@
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         state.capturedImages.push(imgData);
 
-        // Matikan penerangan flash sesaat setelah jepretan shutter
         if (state.flashEnabled) {
             setTimeout(async () => {
                 await deactivateFlashIllumination();
@@ -2676,16 +2473,12 @@
         }
     }
 
-    /**
-     * Canvas Rendering Engine
-     */
     async function renderCanvas(isExport = false, targetCanvas = null, customWidth = null) {
         const canvas = targetCanvas || elements.canvasPreview;
         if (!canvas) return;
 
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
         
-        // Lebar kanvas: default 840px untuk preview, atau resolusi asli HD untuk export
         let renderW = customWidth || 840;
         if (isExport && !customWidth) {
             renderW = Math.max(1200, (theme && theme.naturalWidth) ? theme.naturalWidth : 1200);
@@ -2697,10 +2490,8 @@
         canvas.height = layoutConfig.height;
         const ctx = canvas.getContext('2d');
 
-        // 1. Render Background & Underlay Frame
         await PhotoFrames.renderFrameDecorations(ctx, theme, layoutConfig, state.frameHeader, state.frameSubtitle);
 
-        // 2. Render Photos into Grid Slots (Center-crop / Object-fit Cover)
         const filter = PhotoFilters.getFilter(state.selectedFilter);
 
         for (let i = 0; i < layoutConfig.slots.length; i++) {
@@ -2721,10 +2512,8 @@
             }
         }
 
-        // 3. Render Frame Overlay PNG - Menimpa di atas foto (Twibbon/Photobooth Berlubang)
         await PhotoFrames.renderOverlay(ctx, theme, layoutConfig);
 
-        // 4. Render Custom Stickers (Skala proporsional terhadap renderW)
         const scaleFactor = renderW / 840;
         state.stickers.forEach(st => {
             ctx.save();
@@ -2733,7 +2522,6 @@
                 ctx.rotate((st.rotation * Math.PI) / 180);
             }
 
-            // Render sticker emoji dengan font emoji tajam resolusi tinggi
             const fontSize = Math.round((st.size || 76) * scaleFactor);
             ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
             ctx.textAlign = 'center';
@@ -2741,7 +2529,6 @@
             ctx.fillText(st.emoji || '✨', 0, 0);
             ctx.restore();
 
-            // Selection ring hanya saat preview aktif (bukan saat export HD)
             if (!isExport && st.id === state.selectedStickerId && !targetCanvas) {
                 ctx.save();
                 ctx.strokeStyle = '#000000';
@@ -2770,8 +2557,6 @@
             const renderImageElement = (img) => {
                 try {
                     ctx.save();
-                    // Jika frame merupakan overlay dengan cutout transparan (hasAlphaHoles),
-                    // berikan bleed (2.5px) di bawah tepi frame agar tidak ada gap putih atau garis sub-pixel antialiasing
                     const bleed = (theme && theme.hasAlphaHoles && theme.renderMode !== 'background') ? 2.5 : 0;
                     const slotX = slot.x - bleed;
                     const slotY = slot.y - bleed;
@@ -2788,7 +2573,6 @@
                         ctx.clip();
                     }
 
-                    // Sistem Center-crop / Object-fit Cover ke dalam Grid Slot
                     const sW = img.naturalWidth || img.videoWidth || img.width;
                     const sH = img.naturalHeight || img.videoHeight || img.height;
                     if (!sW || !sH) {
@@ -2802,8 +2586,6 @@
                     const nw = sW * scale;
                     const nh = sH * scale;
                     const dx = slotX + (dW - nw) / 2;
-                    // Face-safe framing: Jika rasio foto jauh lebih tinggi dari slot (misal foto selfie vertikal dari HP),
-                    // berikan bias 36% dari atas agar dahi & rambut tidak terpotong ke bawah bingkai
                     let dy;
                     if ((sH / sW) > (dH / dW) * 1.15) {
                         dy = slotY + (dH - nh) * 0.36;
@@ -2817,13 +2599,10 @@
 
                     ctx.drawImage(img, dx, dy, nw, nh);
                     ctx.restore();
-                } catch (e) {
-                    console.warn("drawPhotoInSlot render error:", e);
-                }
+                } catch (e) {}
                 resolve();
             };
 
-            // Direct rendering if already an Image / Canvas / ImageBitmap
             if (typeof HTMLCanvasElement !== 'undefined' && imageSource instanceof HTMLCanvasElement) {
                 return renderImageElement(imageSource);
             }
@@ -2832,16 +2611,12 @@
             }
 
             const img = new Image();
-            // PENTING: Hanya set crossOrigin untuk URL remote http/https. JANGAN PERNAH untuk data: atau blob: (sebabkan error di iOS/WebKit)
             if (typeof imageSource === 'string' && (imageSource.startsWith('http://') || imageSource.startsWith('https://'))) {
                 img.crossOrigin = 'anonymous';
             }
 
             img.onload = () => renderImageElement(img);
-            img.onerror = (err) => {
-                console.warn("drawPhotoInSlot image loading error:", err);
-                resolve();
-            };
+            img.onerror = () => resolve();
             img.src = imageSource;
 
             if (img.complete && img.naturalWidth > 0) {
@@ -2850,10 +2625,6 @@
         });
     }
 
-    /**
-     * Simpan Foto ke Galeri Dashboard (HD Resolution, Sesuai Frame yang Dipilih)
-     * Didukung Hybrid Engine: Server Upload + Local Storage Fallback (100% Berfungsi di Vercel & Offline)
-     */
     async function savePhotoToGallery(navigateToGallery = true) {
         if (state.isUploading) return;
         if (!state.capturedImages || state.capturedImages.length === 0) {
@@ -2880,7 +2651,6 @@
         }
 
         try {
-            // Render versi HD di offscreen canvas berkualitas tinggi (Pixel Perfect Sesuai Frame)
             const nativeW = (theme && theme.naturalWidth) ? theme.naturalWidth : 840;
             const exportWidth = Math.max(1200, nativeW);
             const hdCanvas = document.createElement('canvas');
@@ -2889,7 +2659,6 @@
             const dataUrl = hdCanvas.toDataURL('image/png', 1.0);
             const currentUserId = getOrCreateUserId();
             let finalPhotoId = 'photo_' + Date.now();
-            let serverSynced = false;
 
             const payload = {
                 image: dataUrl,
@@ -2900,7 +2669,6 @@
                 subtitle: state.frameSubtitle || ''
             };
 
-            // 1. Coba upload ke server (jika backend server aktif)
             try {
                 const response = await fetch('/api/photos/upload', {
                     method: 'POST',
@@ -2915,14 +2683,10 @@
                     const resData = await response.json();
                     if (resData && (resData.id || resData.photoId)) {
                         finalPhotoId = resData.id || resData.photoId;
-                        serverSynced = true;
                     }
                 }
-            } catch (netErr) {
-                console.warn("Backend server /api/photos/upload tidak aktif (Vercel static/offline), menggunakan penyimpanan lokal:", netErr);
-            }
+            } catch (netErr) {}
 
-            // 2. Selalu simpan ke PhotoStorage lokal (Garansi 100% foto tersimpan & tampil di galeri dashboard)
             const photoRecord = {
                 id: finalPhotoId,
                 userId: currentUserId,
@@ -2946,7 +2710,6 @@
                 showStep('gallery');
             }
         } catch (err) {
-            console.error('Save to gallery error:', err);
             showToast('❌ Gagal menyimpan foto: ' + (err.message || 'Periksa penyimpanan perangkat'), 'error');
         } finally {
             state.isUploading = false;
@@ -2964,8 +2727,6 @@
         }
 
         const theme = PhotoFrames.getTheme(state.selectedThemeId);
-        
-        // Render versi HD di offscreen canvas berkualitas tinggi
         const nativeW = (theme && theme.naturalWidth) ? theme.naturalWidth : 840;
         const exportWidth = Math.max(1200, nativeW);
         const hdCanvas = document.createElement('canvas');
@@ -3046,9 +2807,6 @@
         printWindow.document.close();
     }
 
-    /**
-     * Toast Floating Notifications
-     */
     let toastTimeout = null;
     function showToast(message, type = 'info', duration = 3600) {
         const toast = elements.toastEl || document.getElementById('photoart-toast');
@@ -3063,9 +2821,6 @@
         }, duration);
     }
 
-    /**
-     * Date & Time Formatter (Indonesian Locale)
-     */
     function formatDateTime(isoString) {
         if (!isoString) return '-';
         try {
@@ -3083,9 +2838,6 @@
         }
     }
 
-    /**
-     * XSS Sanitizer for Safe HTML Rendering
-     */
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str)
@@ -3096,9 +2848,6 @@
             .replaceAll("'", '&#039;');
     }
 
-    /**
-     * Lightbox Modal Full Screen Viewer
-     */
     function openLightbox(imgUrl, caption) {
         if (!elements.modalLightbox) return;
         if (elements.lightboxImg) elements.lightboxImg.src = imgUrl;
@@ -3116,13 +2865,6 @@
         if (elements.lightboxImg) elements.lightboxImg.src = '';
     }
 
-    /**
-     * Auto-Save Session Photo to Server & Update Badge
-     */
-    async function uploadCurrentPhotoSession() {
-        return savePhotoToGallery(false);
-    }
-
     async function updateGalleryBadge() {
         try {
             const currentUserId = getOrCreateUserId();
@@ -3136,11 +2878,8 @@
                     const photos = Array.isArray(data) ? data : (data.photos || []);
                     count = photos.filter(p => !p.deleted).length;
                 }
-            } catch (e) {
-                // Server offline, silent fallback
-            }
+            } catch (e) {}
 
-            // Gabungkan hitungan dari PhotoStorage lokal
             const localPhotos = PhotoStorage.getUserPhotos(currentUserId);
             count = Math.max(count, localPhotos.length);
 
@@ -3158,10 +2897,6 @@
         } catch (e) {}
     }
 
-    /**
-     * User Gallery Dashboard Logic (Strictly Isolated to Current Device/User)
-     * Dual Mode: Server API + Local Storage (Bekerja 100% di Vercel & Offline)
-     */
     async function loadUserGallery() {
         if (!elements.userGalleryGrid) return;
 
@@ -3179,7 +2914,6 @@
             const currentUserId = getOrCreateUserId();
             let serverPhotos = [];
 
-            // 1. Coba ambil dari server
             try {
                 const res = await fetch(`/api/photos?userId=${encodeURIComponent(currentUserId)}`, {
                     headers: { 'X-User-Id': currentUserId }
@@ -3188,20 +2922,15 @@
                     const data = await res.json();
                     serverPhotos = Array.isArray(data) ? data : (data.photos || []);
                 }
-            } catch (netErr) {
-                console.warn("Backend /api/photos tidak dapat dijangkau, memuat dari penyimpanan lokal:", netErr);
-            }
+            } catch (netErr) {}
 
-            // 2. Ambil dari PhotoStorage lokal
             const localPhotos = PhotoStorage.getUserPhotos(currentUserId);
 
-            // 3. Gabungkan dan deduplikasi berdasarkan ID foto
             const photoMap = new Map();
             serverPhotos.forEach(p => { if (!p.deleted) photoMap.set(p.id, p); });
             localPhotos.forEach(p => { if (!p.deleted) photoMap.set(p.id, p); });
 
             const photos = Array.from(photoMap.values());
-            // Urutkan foto terbaru di atas
             photos.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
             if (elements.userGalleryCount) {
@@ -3260,14 +2989,12 @@
                     </div>
                 `;
 
-                // Zoom actions
                 const thumbWrapper = card.querySelector('.gallery-card-thumb-wrapper');
                 const btnZoom = card.querySelector('[data-action="zoom"]');
                 const handleZoom = () => openLightbox(photo.url, `${themeName} • ${dateStr}`);
                 thumbWrapper.addEventListener('click', handleZoom);
                 btnZoom.addEventListener('click', handleZoom);
 
-                // Soft delete action
                 const btnDelete = card.querySelector('[data-action="delete"]');
                 btnDelete.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3277,14 +3004,11 @@
                 elements.userGalleryGrid.appendChild(card);
             });
         } catch (err) {
-            console.error("Gallery loading error:", err);
-            // Jika ada error tak terduga, tetap tampilkan data lokal
             const currentUserId = getOrCreateUserId();
             const fallbackList = PhotoStorage.getUserPhotos(currentUserId);
             if (fallbackList.length > 0) {
                 elements.userGalleryGrid.innerHTML = '';
                 fallbackList.forEach(photo => {
-                    // Card fallback
                     const card = document.createElement('div');
                     card.className = 'gallery-card';
                     card.innerHTML = `
@@ -3310,10 +3034,8 @@
         }
 
         const currentUserId = getOrCreateUserId();
-        // 1. Hapus langsung dari PhotoStorage lokal
         PhotoStorage.softDelete(id, currentUserId);
 
-        // 2. Coba hapus di server jika online
         try {
             await fetch('/api/photos/delete', {
                 method: 'POST',
@@ -3330,9 +3052,6 @@
         updateGalleryBadge();
     }
 
-    /**
-     * Admin Media & Recovery Dashboard Logic
-     */
     function initAdminPanel() {
         if (state.adminToken) {
             if (elements.adminLoginCard) elements.adminLoginCard.style.display = 'none';
@@ -3355,7 +3074,6 @@
         let token = null;
         let isSuccess = false;
 
-        // 1. Coba verifikasi lewat server jika backend aktif
         try {
             const res = await fetch('/api/admin/login', {
                 method: 'POST',
@@ -3370,12 +3088,8 @@
                     isSuccess = true;
                 }
             }
-        } catch (e) {
-            console.warn("Backend /api/admin/login offline, beralih ke verifikasi lokal:", e);
-        }
+        } catch (e) {}
 
-        // 2. Client fallback verification (khusus deployment static Vercel / offline)
-        // Menerima PIN resmi (8888, 1234, 0000) atau PIN angka >= 4 digit saat offline
         if (!isSuccess && (pin === '8888' || pin === '1234' || pin === '0000' || pin.length >= 4)) {
             token = 'token_operator_vercel_' + Date.now();
             isSuccess = true;
@@ -3419,7 +3133,6 @@
         const publishedCount = rawList.filter(f => f.isPublished !== false).length;
         const draftCount = totalCount - publishedCount;
 
-        // Update counts in header metrics & curation box badges
         if (elements.statTotalFrames) {
             elements.statTotalFrames.innerHTML = `${totalCount} <span style="font-size: 12px; font-weight: normal; opacity: 0.85;">(${publishedCount} Published, ${draftCount} Private)</span>`;
         }
@@ -3428,7 +3141,6 @@
         if (elements.countCurationPub) elements.countCurationPub.innerText = publishedCount;
         if (elements.countCurationPriv) elements.countCurationPriv.innerText = draftCount;
 
-        // Active curation filter ('all', 'published', 'draft')
         const currentFilter = state.adminCurationFilter || 'all';
         let filteredList = rawList;
         if (currentFilter === 'published') {
@@ -3501,7 +3213,6 @@
                 </div>
             `;
 
-            // Handler: Toggle Publish / Unpublish
             const pubBtn = card.querySelector('.btn-publish-main');
             if (pubBtn) {
                 pubBtn.addEventListener('click', async (e) => {
@@ -3527,7 +3238,6 @@
                 });
             }
 
-            // Handler: Preview
             const prevBtn = card.querySelector('.btn-preview-admin-frame');
             if (prevBtn) {
                 prevBtn.addEventListener('click', (e) => {
@@ -3537,13 +3247,11 @@
                         showToast(`👁️ Mengaktifkan preview bingkai "${theme.name}". Anda dapat menguji pemotretan & hasil cetaknya.`, 'info');
                         showStep('camera');
                     } else {
-                        // Jika berada di admin.html terpisah, buka bilik user dengan bingkai ini
                         window.location.href = 'booth.html?preview=' + encodeURIComponent(theme.id);
                     }
                 });
             }
 
-            // Handler: Delete
             const delBtn = card.querySelector('.btn-delete-admin-frame');
             if (delBtn) {
                 delBtn.addEventListener('click', async (e) => {
@@ -3567,18 +3275,15 @@
     async function loadAdminDashboard() {
         if (!state.adminToken) return;
 
-        // Sync frames & update metrics
         await PhotoFrames.syncWithServer(state.adminToken);
         const totalCount = PhotoFrames.allThemes ? PhotoFrames.allThemes.length : PhotoFrames.themes.length;
         if (elements.statTotalFrames) elements.statTotalFrames.innerText = totalCount;
         if (elements.badgeFramesCount) elements.badgeFramesCount.innerText = totalCount;
 
-        // Tab Navigation Highlighting
         if (elements.tabBtnFrames) elements.tabBtnFrames.classList.toggle('active', state.adminActiveTab === 'frames');
         if (elements.tabBtnTrash) elements.tabBtnTrash.classList.toggle('active', state.adminActiveTab === 'trash');
         if (elements.tabBtnActive) elements.tabBtnActive.classList.toggle('active', state.adminActiveTab === 'active');
 
-        // Tab: Frames Management
         if (state.adminActiveTab === 'frames') {
             if (elements.adminFramesView) elements.adminFramesView.style.display = 'block';
             if (elements.adminPhotosView) elements.adminPhotosView.style.display = 'none';
@@ -3586,7 +3291,6 @@
             return;
         }
 
-        // Tab: Photos (Trash or Active)
         if (elements.adminFramesView) elements.adminFramesView.style.display = 'none';
         if (elements.adminPhotosView) elements.adminPhotosView.style.display = 'block';
 
@@ -3615,16 +3319,13 @@
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Gagal memuat media admin');
 
-            // Update Metric Counts
             if (elements.statTotalPhotos) elements.statTotalPhotos.innerText = data.stats.total;
             if (elements.statActivePhotos) elements.statActivePhotos.innerText = data.stats.active;
             if (elements.statDeletedPhotos) elements.statDeletedPhotos.innerText = data.stats.deleted;
 
-            // Update Tab Badges
             if (elements.badgeTrashCount) elements.badgeTrashCount.innerText = data.stats.deleted;
             if (elements.badgeActiveCount) elements.badgeActiveCount.innerText = data.stats.active;
 
-            // Show or hide trash recovery notice banner
             const isTrashTab = (state.adminActiveTab === 'trash');
             if (elements.adminTrashNotice) {
                 elements.adminTrashNotice.style.display = isTrashTab ? 'block' : 'none';
@@ -3658,7 +3359,6 @@
                 elements.adminMediaGrid.appendChild(card);
             });
         } catch (err) {
-            console.warn("Backend /api/admin/photos offline (Vercel static mode), memuat data media dari local storage:", err);
             const allPhotos = PhotoStorage.getAll();
             const activeList = allPhotos.filter(p => !p.deleted);
             const deletedList = allPhotos.filter(p => p.deleted);
@@ -3757,7 +3457,6 @@
             </div>
         `;
 
-        // Zoom click
         const thumbBox = card.querySelector('.admin-media-thumb-box');
         const handleZoom = () => openLightbox(photo.url, `Admin Media [${photo.deleted ? 'TERHAPUS' : 'AKTIF'}] • ID: ${photo.id} • ${themeName}`);
         if (thumbBox) thumbBox.addEventListener('click', handleZoom);
@@ -3765,7 +3464,6 @@
         const btnZoom = card.querySelector('[data-action="zoom"]');
         if (btnZoom) btnZoom.addEventListener('click', handleZoom);
 
-        // Restore click
         const btnRestore = card.querySelector('[data-action="restore"]');
         if (btnRestore) {
             btnRestore.addEventListener('click', (e) => {
@@ -3774,7 +3472,6 @@
             });
         }
 
-        // Permanent delete click
         const btnPermDelete = card.querySelector('[data-action="perm-delete"]');
         if (btnPermDelete) {
             btnPermDelete.addEventListener('click', (e) => {
@@ -3783,7 +3480,6 @@
             });
         }
 
-        // Move to trash click
         const btnTrashMove = card.querySelector('[data-action="trash-move"]');
         if (btnTrashMove) {
             btnTrashMove.addEventListener('click', (e) => {
@@ -3796,10 +3492,8 @@
     }
 
     async function adminRestorePhoto(id) {
-        // 1. Selalu pulihkan di penyimpanan lokal PhotoStorage
         PhotoStorage.restore(id);
 
-        // 2. Coba pulihkan di server jika backend aktif
         try {
             await fetch('/api/admin/restore', {
                 method: 'POST',
@@ -3809,9 +3503,7 @@
                 },
                 body: JSON.stringify({ id: id })
             });
-        } catch (e) {
-            console.warn("Server restore sync notice:", e);
-        }
+        } catch (e) {}
 
         showToast('✅ Foto berhasil dipulihkan! Sekarang sudah muncul kembali di Galeri Pengunjung.', 'success', 3500);
         await loadAdminDashboard();
@@ -3823,10 +3515,8 @@
             return;
         }
 
-        // 1. Hapus dari PhotoStorage lokal
         PhotoStorage.permanentDelete(id);
 
-        // 2. Coba hapus di server jika online
         try {
             await fetch('/api/admin/permanent-delete', {
                 method: 'POST',
@@ -3836,9 +3526,7 @@
                 },
                 body: JSON.stringify({ id: id })
             });
-        } catch (e) {
-            console.warn("Server permanent delete notice:", e);
-        }
+        } catch (e) {}
 
         showToast('🗑️ Foto telah dihapus secara permanen.', 'info');
         await loadAdminDashboard();
@@ -3850,10 +3538,8 @@
             return;
         }
 
-        // 1. Soft delete di PhotoStorage lokal
         PhotoStorage.softDelete(id);
 
-        // 2. Coba kirim ke server jika online
         try {
             await fetch('/api/photos/delete', {
                 method: 'POST',
@@ -3867,13 +3553,9 @@
         await updateGalleryBadge();
     }
 
-    // Window helpers for reload buttons
     window.PhotoArtReloadGallery = loadUserGallery;
     window.PhotoArtReloadAdmin = loadAdminDashboard;
 
-    /**
-     * Barcode / QR Code Handling
-     */
     function setupShareBarcode() {
         const currentUrl = window.location.href.split('#')[0];
         if (elements.inputShareUrl) {
@@ -3932,9 +3614,6 @@
         }, 2000);
     }
 
-    /**
-     * Event Listeners
-     */
     function bindEvents() {
         document.querySelectorAll('.timer-chip').forEach(chip => {
             chip.addEventListener('click', () => {
@@ -4009,7 +3688,6 @@
             });
         }
 
-        // Sticker Controller Events
         if (elements.btnClearStickers) {
             elements.btnClearStickers.addEventListener('click', () => {
                 state.stickers = [];
@@ -4032,7 +3710,6 @@
             elements.btnStickerRotate.addEventListener('click', rotateSticker);
         }
 
-        // Preset Position Buttons
         document.querySelectorAll('.sticker-pos-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const pos = btn.getAttribute('data-pos');
@@ -4040,7 +3717,6 @@
             });
         });
 
-        // D-Pad Nudge Buttons
         document.querySelectorAll('.sticker-dpad-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const dir = btn.getAttribute('data-move');
@@ -4048,7 +3724,6 @@
             });
         });
 
-        // Final Actions
         if (elements.btnSaveToGallery) elements.btnSaveToGallery.addEventListener('click', () => savePhotoToGallery(true));
         if (elements.btnDownloadDirect) elements.btnDownloadDirect.addEventListener('click', downloadPhoto);
         if (elements.btnDownloadFinal && elements.btnDownloadFinal !== elements.btnSaveToGallery) {
@@ -4057,7 +3732,6 @@
         if (elements.btnShareFinal) elements.btnShareFinal.addEventListener('click', sharePhoto);
         if (elements.btnPrintFinal) elements.btnPrintFinal.addEventListener('click', printPhoto);
 
-        // Mobile Editor Tool Tabs (Clean Swapping for Gadget screens)
         document.querySelectorAll('.editor-tab-pill').forEach(pill => {
             pill.addEventListener('click', () => {
                 document.querySelectorAll('.editor-tab-pill').forEach(p => p.classList.remove('active'));
@@ -4069,7 +3743,6 @@
             });
         });
 
-        // Barcode Modal
         if (elements.btnOpenBarcode) {
             elements.btnOpenBarcode.addEventListener('click', () => {
                 setupShareBarcode();
@@ -4096,8 +3769,6 @@
         if (elements.btnCopyLink) elements.btnCopyLink.addEventListener('click', copyShareLink);
         if (elements.btnDownloadQr) elements.btnDownloadQr.addEventListener('click', downloadQrCode);
 
-        // Header Navigation Links
-        // Homepage and Navigation Links
         if (elements.brandHomeLink) {
             elements.brandHomeLink.addEventListener('click', (e) => {
                 if (elements.stepHome) {
@@ -4180,7 +3851,6 @@
             });
         }
 
-        // Discrete Footer Quick Links
         const fHome = document.getElementById('footer-btn-home');
         if (fHome) {
             fHome.addEventListener('click', (e) => {
@@ -4194,151 +3864,3 @@
         const fBooth = document.getElementById('footer-btn-booth');
         if (fBooth) {
             fBooth.addEventListener('click', (e) => {
-                if (elements.stepSetup) {
-                    e.preventDefault();
-                    showStep('setup');
-                }
-            });
-        }
-
-        const fGallery = document.getElementById('footer-btn-gallery');
-        if (fGallery) {
-            fGallery.addEventListener('click', (e) => {
-                if (elements.stepGallery) {
-                    e.preventDefault();
-                    showStep('gallery');
-                } else {
-                    window.location.href = 'booth.html?step=gallery';
-                }
-            });
-        }
-
-        const fAdmin = document.getElementById('footer-btn-admin');
-        if (fAdmin) {
-            fAdmin.addEventListener('click', (e) => {
-                if (elements.stepAdmin) {
-                    e.preventDefault();
-                    showStep('admin');
-                } else {
-                    window.location.href = 'admin.html';
-                }
-            });
-        }
-
-        // Editor button to open user gallery
-        if (elements.btnViewInGallery) {
-            elements.btnViewInGallery.addEventListener('click', () => {
-                showStep('gallery');
-            });
-        }
-
-        // User Gallery Dashboard Actions
-        if (elements.btnGalleryNewSession) {
-            elements.btnGalleryNewSession.addEventListener('click', () => {
-                state.capturedImages = [];
-                state.stickers = [];
-                state.selectedStickerId = null;
-                state.currentSessionUploaded = false;
-                state.lastUploadedPhotoId = null;
-                showStep('camera');
-            });
-        }
-
-        if (elements.btnEmptyStartBooth) {
-            elements.btnEmptyStartBooth.addEventListener('click', () => {
-                showStep('setup');
-            });
-        }
-
-        if (elements.btnGalleryRefresh) {
-            elements.btnGalleryRefresh.addEventListener('click', () => {
-                loadUserGallery();
-                showToast('🔄 Galeri foto disegarkan', 'info');
-            });
-        }
-
-        // Admin Media & Recovery Dashboard Actions
-        if (elements.formAdminLogin) {
-            elements.formAdminLogin.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const pin = elements.inputAdminPin ? elements.inputAdminPin.value.trim() : '';
-                handleAdminLogin(pin);
-            });
-        }
-
-        if (elements.btnAdminLogout) {
-            elements.btnAdminLogout.addEventListener('click', handleAdminLogout);
-        }
-
-        if (elements.btnAdminRefresh) {
-            elements.btnAdminRefresh.addEventListener('click', () => {
-                loadAdminDashboard();
-                showToast('🔄 Data media admin disegarkan', 'info');
-            });
-        }
-
-        if (elements.tabBtnFrames) {
-            elements.tabBtnFrames.addEventListener('click', () => {
-                state.adminActiveTab = 'frames';
-                elements.tabBtnFrames.classList.add('active');
-                if (elements.tabBtnTrash) elements.tabBtnTrash.classList.remove('active');
-                if (elements.tabBtnActive) elements.tabBtnActive.classList.remove('active');
-                loadAdminDashboard();
-            });
-        }
-
-        if (elements.tabBtnTrash) {
-            elements.tabBtnTrash.addEventListener('click', () => {
-                state.adminActiveTab = 'trash';
-                elements.tabBtnTrash.classList.add('active');
-                if (elements.tabBtnFrames) elements.tabBtnFrames.classList.remove('active');
-                if (elements.tabBtnActive) elements.tabBtnActive.classList.remove('active');
-                loadAdminDashboard();
-            });
-        }
-
-        if (elements.tabBtnActive) {
-            elements.tabBtnActive.addEventListener('click', () => {
-                state.adminActiveTab = 'active';
-                elements.tabBtnActive.classList.add('active');
-                if (elements.tabBtnFrames) elements.tabBtnFrames.classList.remove('active');
-                if (elements.tabBtnTrash) elements.tabBtnTrash.classList.remove('active');
-                loadAdminDashboard();
-            });
-        }
-
-        // Kotak Kurasi Bingkai Tabs (Semua / Published / Private)
-        const setupCurationFilterBtn = (btn, filterValue) => {
-            if (!btn) return;
-            btn.addEventListener('click', () => {
-                state.adminCurationFilter = filterValue;
-                if (elements.btnFilterFramesAll) elements.btnFilterFramesAll.classList.toggle('active', filterValue === 'all');
-                if (elements.btnFilterFramesPub) elements.btnFilterFramesPub.classList.toggle('active', filterValue === 'published');
-                if (elements.btnFilterFramesPriv) elements.btnFilterFramesPriv.classList.toggle('active', filterValue === 'draft');
-                loadAdminFrames(false);
-            });
-        };
-        setupCurationFilterBtn(elements.btnFilterFramesAll, 'all');
-        setupCurationFilterBtn(elements.btnFilterFramesPub, 'published');
-        setupCurationFilterBtn(elements.btnFilterFramesPriv, 'draft');
-
-        // Lightbox Modal Controls
-        if (elements.btnCloseLightbox) {
-            elements.btnCloseLightbox.addEventListener('click', closeLightbox);
-        }
-
-        if (elements.modalLightbox) {
-            elements.modalLightbox.addEventListener('click', (e) => {
-                if (e.target === elements.modalLightbox) {
-                    closeLightbox();
-                }
-            });
-        }
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
