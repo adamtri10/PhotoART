@@ -66,8 +66,8 @@
     "subtitle": "STUDIO MEMORIES",
     "createdAt": "2026-11-03T09:38:12Z",
     "fileSize": 2269103,
-    "deleted": false,
-    "deletedAt": null
+    "deleted": true,
+    "deletedAt": "2026-11-04T08:51:56Z"
   },
   {
     "id": "pa_1793698731_65b1e1",
@@ -94,8 +94,8 @@
     "subtitle": "STUDIO MEMORIES",
     "createdAt": "2026-11-03T10:08:31Z",
     "fileSize": 1791617,
-    "deleted": false,
-    "deletedAt": null
+    "deleted": true,
+    "deletedAt": "2026-11-04T08:43:35Z"
   },
   {
     "id": "pa_1793700547_5d487a",
@@ -108,8 +108,8 @@
     "subtitle": "STUDIO MEMORIES",
     "createdAt": "2026-11-03T10:09:07Z",
     "fileSize": 1648989,
-    "deleted": false,
-    "deletedAt": null
+    "deleted": true,
+    "deletedAt": "2026-11-04T08:43:30Z"
   },
   {
     "id": "pa_1793770441_62e01d",
@@ -124,5 +124,33 @@
     "fileSize": 1470658,
     "deleted": true,
     "deletedAt": "2026-11-04T05:34:09Z"
+  },
+  {
+    "id": "pa_1793781801_cf6e0e",
+    "userId": "user_11nsy2",
+    "filename": "photo_pa_1793781801_cf6e0e.jpg",
+    "url": "data/photos/photo_pa_1793781801_cf6e0e.jpg",
+    "themeId": "asset_frame_strip_3",
+    "themeName": "Classic Studio (3 Pose)",
+    "header": "PHOTOART",
+    "subtitle": "STUDIO MEMORIES",
+    "createdAt": "2026-11-04T08:43:21Z",
+    "fileSize": 235428,
+    "deleted": true,
+    "deletedAt": "2026-11-04T08:43:42Z"
+  },
+  {
+    "id": "pa_1793782302_d0d7e0",
+    "userId": "user_11nsy2",
+    "filename": "photo_pa_1793782302_d0d7e0.jpg",
+    "url": "data/photos/photo_pa_1793782302_d0d7e0.jpg",
+    "themeId": "asset_frame_strip_3",
+    "themeName": "Classic Studio (3 Pose)",
+    "header": "PHOTOART",
+    "subtitle": "STUDIO MEMORIES",
+    "createdAt": "2026-11-04T08:51:42Z",
+    "fileSize": 236586,
+    "deleted": true,
+    "deletedAt": "2026-11-04T08:51:48Z"
   }
 ]
