@@ -82,31 +82,29 @@
         <section id="step-admin" class="step-view active">
             
             <!-- Admin Login Screen (If not authenticated) -->
-            <div id="admin-login-card" class="card admin-vault-card" style="max-width: 440px; margin: 30px auto; padding: 30px 20px; text-align: center; position: relative;">
+            <div id="admin-login-card" class="card admin-vault-card">
                 <div class="vault-security-badge">
                     <span class="vault-led-dot"></span>
                     <span>RESTRICTED CENTRAL ADMIN VAULT</span>
                 </div>
-                <div class="vault-keyhole-icon"></div>
-                <h2 class="card-title" style="justify-content: center; font-size: 21px; margin-top: 8px;">Akses Sentral Operator</h2>
-                <p class="card-subtitle" style="max-width: 360px; margin: 0 auto 16px;">
+                <div class="vault-keyhole-icon">🔐</div>
+                <h2 class="card-title vault-title">Akses Sentral Operator</h2>
+                <p class="card-subtitle vault-subtitle">
                     Halaman kontrol operator booth untuk <strong>mengunggah & kurasi bingkai</strong>, serta memantau <strong>seluruh foto dari semua pengunjung</strong>.
                 </p>
 
-                <form id="form-admin-login" style="margin-top: 18px;">
-                    <div class="form-group" style="text-align: left;">
+                <form id="form-admin-login">
+                    <div class="form-group vault-form-group">
                         <label class="form-label" for="input-admin-pin">PIN Rahasia Operator:</label>
-                        <input id="input-admin-pin" class="form-input" type="password" placeholder="Masukkan PIN" maxlength="16" required style="font-size: 17px; letter-spacing: 0.25em; text-align: center; font-weight: 800;">
-                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 7px; text-align: center;">
+                        <input id="input-admin-pin" class="form-input vault-pin-input" type="password" placeholder="Masukkan PIN" maxlength="16" inputmode="numeric" required>
+                        <div class="vault-pin-hint">
                             🔑 PIN Bawaan: <strong>8888</strong> atau <strong>1234</strong>
                         </div>
                     </div>
                     <div id="admin-login-error" class="login-error-msg" style="display: none;"></div>
-                    <button type="submit" class="btn-primary" style="margin-top: 12px;">
+                    <button type="submit" class="btn-primary vault-login-btn">
                         <span>Buka Dashboard Operator</span>
                     </button>
-                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 14px;">
-                    </p>
                 </form>
             </div>
 
@@ -114,25 +112,25 @@
             <div id="admin-panel-content" style="display: none;">
                 
                 <!-- Admin Header Bar -->
-                <div class="admin-top-bar card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; margin-bottom: 14px;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 18px;"></span>
-                            <h2 style="font-size: 16px; font-weight: 800; color: #000000; margin: 0;">PhotoArt Operator Control Center</h2>
+                <div class="admin-top-bar card">
+                    <div class="admin-top-bar-info">
+                        <div class="admin-top-bar-title-row">
+                            <span class="admin-top-icon">⚡</span>
+                            <h2 class="admin-top-title">PhotoArt Operator Control Center</h2>
                         </div>
-                        <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                        <p class="admin-top-subtitle">
                             Kurasi Bingkai, Pengawasan Media Pengunjung & Pemulihan Foto Terhapus (*Recycle Bin*)
                         </p>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                        <a href="booth.html" class="btn-secondary" style="padding: 7px 12px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                            <span>Bilik Foto</span>
+                    <div class="admin-top-bar-actions">
+                        <a href="booth.html" class="btn-secondary btn-admin-top" title="Buka Bilik Photobooth Pengunjung">
+                            <span>📸 Bilik Foto</span>
                         </a>
-                        <button type="button" class="btn-secondary" id="btn-admin-refresh" style="padding: 7px 12px; font-size: 12px;">
-                            Refresh
+                        <button type="button" class="btn-secondary btn-admin-top" id="btn-admin-refresh" title="Perbarui Data dari Server">
+                            <span>🔄 Refresh</span>
                         </button>
-                        <button type="button" class="btn-secondary" id="btn-admin-logout" style="padding: 7px 12px; font-size: 12px; border-color: #fecaca; color: #dc2626;">
-                            Keluar
+                        <button type="button" class="btn-secondary btn-admin-top btn-admin-logout" id="btn-admin-logout" title="Keluar dari Mode Operator">
+                            <span>🚪 Keluar</span>
                         </button>
                     </div>
                 </div>
@@ -153,19 +151,19 @@
                     </div>
                 </div>
 
-                <!-- Admin Tabs Navigation -->
-                <div class="card" style="padding: 16px; margin-top: 14px;">
+                <!-- Admin Tabs Navigation & Content -->
+                <div class="card admin-tabs-container">
                     <div class="admin-tabs-nav">
                         <button type="button" class="admin-tab-btn active" data-admin-tab="frames" id="tab-btn-frames">
-                            <span>Kelola Bingkai / Frame</span>
+                            <span>🎨 Kelola Bingkai</span>
                             <span class="tab-badge" id="badge-frames-count">0</span>
                         </button>
                         <button type="button" class="admin-tab-btn" data-admin-tab="trash" id="tab-btn-trash">
-                            <span>Keranjang Sampah</span>
+                            <span>🗑️ Keranjang Sampah</span>
                             <span class="tab-badge" id="badge-trash-count">0</span>
                         </button>
                         <button type="button" class="admin-tab-btn" data-admin-tab="active" id="tab-btn-active">
-                            <span>Media Semua User</span>
+                            <span>🖼️ Media Semua User</span>
                             <span class="tab-badge" id="badge-active-count">0</span>
                         </button>
                     </div>
@@ -174,23 +172,23 @@
                     <div id="admin-frames-view" class="admin-tab-view">
                         
                         <!-- KOTAK KURASI BINGKAI -->
-                        <div class="curation-control-box" style="margin-top: 14px; padding: 20px;">
+                        <div class="curation-control-box">
                             
                             <!-- Header Kotak Kurasi -->
-                            <div class="curation-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px; margin-bottom: 18px;">
-                                <div>
-                                    <div style="display: flex; align-items: center; gap: 9px;">
-                                        <span style="font-size: 22px;"></span>
-                                        <h3 style="font-size: 17px; font-weight: 800; color: #000000; margin: 0;">Kotak Kurasi Bingkai (Publish / Private)</h3>
+                            <div class="curation-header">
+                                <div class="curation-intro">
+                                    <div class="curation-title-row">
+                                        <span class="curation-header-icon">🎨</span>
+                                        <h3 class="curation-title">Kotak Kurasi Bingkai (Publish / Private)</h3>
                                     </div>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px; max-width: 540px; line-height: 1.5;">
-                                        Semua bingkai masuk ke kotak admin ini terlebih dahulu. Tentukan bingkai mana yang <strong>Dipublish (Aktif di Bilik User)</strong> atau <strong>Diprivate (Hanya disimpan di Admin)</strong>.
+                                    <p class="curation-desc">
+                                        Semua bingkai masuk ke kotak admin ini. Tentukan bingkai mana yang <strong>Dipublish (Aktif di Bilik Foto Pengunjung)</strong> atau <strong>Diprivate (Hanya disimpan di Admin)</strong>.
                                     </p>
                                 </div>
 
-                                <!-- Filter Tab: Semua / Published / Private + Tombol Upload Opsional -->
-                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                    <div class="curation-filter-tabs" style="display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 3px 5px;">
+                                <!-- Filter Tab: Semua / Published / Private + Tombol Upload -->
+                                <div class="curation-toolbar">
+                                    <div class="curation-filter-tabs">
                                         <button type="button" class="curation-tab-btn active" data-curation-filter="all" id="btn-filter-frames-all">
                                             Semua (<span id="count-curation-all">0</span>)
                                         </button>
@@ -202,10 +200,10 @@
                                         </button>
                                     </div>
 
-                                    <!-- Upload button opsional -->
+                                    <!-- Upload button -->
                                     <input type="file" id="input-admin-frame-upload" accept="image/png, image/jpeg, image/webp" style="display: none;">
-                                    <button type="button" id="btn-admin-upload-frame" class="btn-secondary" style="padding: 7px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
-                                        <span>+ Unggah Frame Baru</span>
+                                    <button type="button" id="btn-admin-upload-frame" class="btn-secondary btn-upload-frame">
+                                        <span>➕ Unggah Frame Baru</span>
                                     </button>
                                 </div>
                             </div>
@@ -219,7 +217,7 @@
                             <div id="admin-frames-empty" class="dashboard-empty-state" style="display: none; padding: 36px 20px; text-align: center;">
                                 <div class="empty-icon" style="font-size: 38px; margin-bottom: 8px;">🖼️</div>
                                 <h3 style="color: #000000; font-size: 16px; font-weight: 800; margin-bottom: 6px;">Belum Ada Bingkai di Kategori Ini</h3>
-                                <p style="color: var(--text-muted); font-size: 12px; max-width: 440px; margin: 0 auto;">Simpan file PNG bingkai ke dalam folder <code>assets/frames/</code> atau klik tombol "+ Unggah Frame Baru" untuk memasukkannya ke kotak kurasi ini.</p>
+                                <p style="color: var(--text-muted); font-size: 12px; max-width: 440px; margin: 0 auto;">Simpan file PNG bingkai ke dalam folder <code>assets/frames/</code> atau klik tombol "➕ Unggah Frame Baru" untuk memasukkannya ke kotak kurasi ini.</p>
                             </div>
                         </div>
 
@@ -227,12 +225,12 @@
 
                     <!-- TAB 2 & 3: MEDIA FOTO USER (Trash & Active) -->
                     <div id="admin-photos-view" class="admin-tab-view" style="display: none;">
-                        <div id="admin-trash-notice" class="admin-alert-banner" style="margin-top: 14px;">
+                        <div id="admin-trash-notice" class="admin-alert-banner">
                             <strong>Fitur Pemulihan Foto:</strong> Jika pengunjung tidak sengaja menghapus foto dari bilik mereka, klik <strong>"🔄 Pulihkan Foto ke User"</strong>. Foto akan langsung kembali tampil di galeri pengunjung secara *real-time*.
                         </div>
 
                         <!-- Admin Media Grid -->
-                        <div id="admin-media-grid" class="admin-media-grid" style="margin-top: 16px;">
+                        <div id="admin-media-grid" class="admin-media-grid">
                             <!-- Injected dynamically via js/app.js -->
                         </div>
 

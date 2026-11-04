@@ -52,41 +52,209 @@
             };
         }
 
-        if (!pf.togglePublishTheme) {
-            pf.togglePublishTheme = async function(themeId, adminToken = '', targetStatus = null) {
-                if (!adminToken) {
-                    throw new Error('Akses Ditolak: Hanya Admin yang dapat mempublikasikan bingkai');
+        pf.mergeServerFrames = function(serverFrames, isAdmin = false) {
+            if (!Array.isArray(serverFrames)) return this.themes;
+
+            let localOverrides = {};
+            try {
+                const raw = localStorage.getItem('photoart_frame_publish_overrides');
+                if (raw) localOverrides = JSON.parse(raw);
+            } catch (e) {}
+
+            let baseList = Array.isArray(this.allThemes) && this.allThemes.length > 0
+                ? this.allThemes
+                : (this.ASSET_FRAMES ? this.ASSET_FRAMES.map(af => ({ ...af })) : []);
+
+            serverFrames.forEach(sf => {
+                const sfId = String(sf.id || '').toLowerCase();
+                const existing = baseList.find(t => t.id === sf.id ||
+                    (sfId.includes('receipt') && String(t.id).toLowerCase().includes('receipt')) ||
+                    (sfId.includes('borcelle') && String(t.id).toLowerCase().includes('borcelle')) ||
+                    (sfId.includes('strip_3') && String(t.id).toLowerCase().includes('strip_3'))
+                );
+
+                if (existing) {
+                    if (sf.isPublished !== undefined) {
+                        existing.isPublished = sf.isPublished;
+                    }
+                    if (sf.url && !existing.url) existing.url = sf.url;
+                    if (sf.slots && (!existing.slots || existing.slots.length === 0)) existing.slots = sf.slots;
+                } else {
+                    baseList.push(sf);
                 }
+            });
+
+            if (!isAdmin) {
+                const publishedIds = new Set(serverFrames.map(f => f.id));
+                baseList.forEach(t => {
+                    const tid = String(t.id).toLowerCase();
+                    const inPublished = publishedIds.has(t.id) ||
+                        ([...publishedIds].some(pid => {
+                            const pLower = String(pid).toLowerCase();
+                            return (tid.includes('receipt') && pLower.includes('receipt')) ||
+                                   (tid.includes('borcelle') && pLower.includes('borcelle')) ||
+                                   (tid.includes('strip_3') && pLower.includes('strip_3'));
+                        }));
+                    if (!inPublished && !t.isCustom) {
+                        t.isPublished = false;
+                    }
+                });
+            }
+
+            baseList.forEach(t => {
+                if (localOverrides[t.id] !== undefined) {
+                    t.isPublished = Boolean(localOverrides[t.id]);
+                }
+            });
+
+            this.allThemes = baseList;
+            this.themes = baseList.filter(f => f.isPublished !== false);
+
+            try {
+                if (typeof this.saveCustomThemes === 'function') {
+                    this.saveCustomThemes();
+                } else {
+                    localStorage.setItem(this.STORAGE_KEY || 'photoart_custom_frames', JSON.stringify(this.allThemes));
+                }
+            } catch (e) {}
+
+            window.dispatchEvent(new CustomEvent('photoart:frames_synced', { detail: this.themes }));
+            return this.themes;
+        };
+
+        pf.syncWithServer = async function(adminToken = '') {
+            try {
+                const headers = {};
+                if (adminToken) headers['X-Admin-Token'] = adminToken;
+                const res = await fetch('/api/custom-frames', { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.success && Array.isArray(data.frames)) {
+                        this.mergeServerFrames(data.frames, Boolean(adminToken));
+                    }
+                }
+            } catch (e) {
+                console.warn('Sync frames notice:', e);
+            }
+            return this.themes;
+        };
+
+        pf.togglePublishTheme = async function(themeId, adminToken = '', targetStatus = null) {
+            if (!adminToken) {
+                throw new Error('Akses Ditolak: Hanya Admin yang dapat mempublikasikan bingkai');
+            }
+
+            const strId = String(themeId || '').toLowerCase();
+            let targetTheme = (this.allThemes || []).find(t => t.id === themeId ||
+                (strId.includes('receipt') && String(t.id).toLowerCase().includes('receipt')) ||
+                (strId.includes('borcelle') && String(t.id).toLowerCase().includes('borcelle')) ||
+                (strId.includes('strip_3') && String(t.id).toLowerCase().includes('strip_3'))
+            );
+
+            if (!targetTheme && this.themes) {
+                targetTheme = this.themes.find(t => t.id === themeId);
+            }
+            if (!targetTheme && this.ASSET_FRAMES) {
+                targetTheme = this.ASSET_FRAMES.find(t => t.id === themeId ||
+                    (strId.includes('receipt') && String(t.id).toLowerCase().includes('receipt')) ||
+                    (strId.includes('borcelle') && String(t.id).toLowerCase().includes('borcelle')) ||
+                    (strId.includes('strip_3') && String(t.id).toLowerCase().includes('strip_3'))
+                );
+            }
+
+            const currentStatus = targetTheme ? (targetTheme.isPublished !== false) : true;
+            const newStatus = (targetStatus !== null) ? Boolean(targetStatus) : !currentStatus;
+
+            // 1. Instant local update
+            if (targetTheme) {
+                targetTheme.isPublished = newStatus;
+            }
+
+            if (Array.isArray(this.allThemes)) {
+                this.allThemes.forEach(t => {
+                    const tid = String(t.id).toLowerCase();
+                    if (t.id === themeId ||
+                        (strId.includes('receipt') && tid.includes('receipt')) ||
+                        (strId.includes('borcelle') && tid.includes('borcelle')) ||
+                        (strId.includes('strip_3') && tid.includes('strip_3'))) {
+                        t.isPublished = newStatus;
+                    }
+                });
+            } else {
+                this.allThemes = (this.ASSET_FRAMES || []).map(af => ({ ...af, isPublished: af.id === themeId ? newStatus : af.isPublished }));
+            }
+
+            this.themes = (this.allThemes || []).filter(f => f.isPublished !== false);
+
+            // 2. Persist to localStorage
+            try {
+                if (typeof this.saveCustomThemes === 'function') {
+                    this.saveCustomThemes();
+                } else {
+                    localStorage.setItem(this.STORAGE_KEY || 'photoart_custom_frames', JSON.stringify(this.allThemes));
+                }
+
+                let pubOverrides = {};
+                try {
+                    const raw = localStorage.getItem('photoart_frame_publish_overrides');
+                    if (raw) pubOverrides = JSON.parse(raw);
+                } catch (e) {}
+                const actualId = targetTheme ? targetTheme.id : themeId;
+                pubOverrides[actualId] = newStatus;
+                pubOverrides[themeId] = newStatus;
+                localStorage.setItem('photoart_frame_publish_overrides', JSON.stringify(pubOverrides));
+            } catch (e) {
+                console.warn('Storage save notice:', e);
+            }
+
+            window.dispatchEvent(new CustomEvent('photoart:frames_synced', { detail: this.themes }));
+
+            // 3. Sync to Server
+            try {
                 const headers = {
                     'Content-Type': 'application/json',
                     'X-Admin-Token': adminToken
                 };
-                const payload = { id: themeId };
-                if (targetStatus !== null) {
-                    payload.isPublished = targetStatus;
-                }
+                const payload = { id: themeId, isPublished: newStatus };
                 const res = await fetch('/api/custom-frames/toggle-publish', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.message || 'Gagal mengubah status publikasi bingkai');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && Array.isArray(data.frames)) {
+                        this.mergeServerFrames(data.frames, true);
+                    }
                 }
-                const data = await res.json();
-                if (data.success && typeof this.syncWithServer === 'function') {
-                    await this.syncWithServer(adminToken);
-                }
-                return data;
-            };
-        }
+            } catch (netErr) {
+                console.warn('Backend sync deferred (persisted locally):', netErr);
+            }
 
-        if (!pf.deleteCustomTheme) {
-            pf.deleteCustomTheme = async function(themeId, adminToken = '') {
-                if (!adminToken) {
-                    throw new Error('Akses Ditolak: Hanya Admin yang dapat menghapus bingkai');
-                }
+            return { success: true, isPublished: newStatus, frame: targetTheme };
+        };
+
+        pf.deleteCustomTheme = async function(themeId, adminToken = '') {
+            if (!adminToken) {
+                throw new Error('Akses Ditolak: Hanya Admin yang dapat menghapus bingkai');
+            }
+
+            if (this.themes) this.themes = this.themes.filter(t => t.id !== themeId);
+            if (this.allThemes) this.allThemes = this.allThemes.filter(t => t.id !== themeId);
+            try {
+                if (typeof this.saveCustomThemes === 'function') this.saveCustomThemes();
+                let pubOverrides = {};
+                try {
+                    const raw = localStorage.getItem('photoart_frame_publish_overrides');
+                    if (raw) pubOverrides = JSON.parse(raw);
+                } catch (e) {}
+                pubOverrides[`${themeId}_deleted`] = true;
+                localStorage.setItem('photoart_frame_publish_overrides', JSON.stringify(pubOverrides));
+            } catch (e) {}
+
+            window.dispatchEvent(new CustomEvent('photoart:frames_synced', { detail: this.themes }));
+
+            try {
                 const headers = {
                     'Content-Type': 'application/json',
                     'X-Admin-Token': adminToken
@@ -96,54 +264,53 @@
                     headers: headers,
                     body: JSON.stringify({ id: themeId })
                 });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.message || 'Gagal menghapus bingkai');
-                }
-                const data = await res.json();
-                if (data.success) {
-                    if (this.themes) this.themes = this.themes.filter(t => t.id !== themeId);
-                    if (this.allThemes) this.allThemes = this.allThemes.filter(t => t.id !== themeId);
-                    if (typeof this.saveCustomThemes === 'function') this.saveCustomThemes();
-                    if (typeof this.syncWithServer === 'function') await this.syncWithServer(adminToken);
-                }
-                return data;
-            };
-        }
-
-        if (!pf.addCustomTheme) {
-            pf.addCustomTheme = async function(theme, adminToken = '') {
-                if (!theme.id) {
-                    theme.id = 'frame_' + Date.now();
-                }
-                theme.isCustom = true;
-                if (!this.themes) this.themes = [];
-                this.themes.unshift(theme);
-                if (this.allThemes && !this.allThemes.some(t => t.id === theme.id)) {
-                    this.allThemes.unshift(theme);
-                }
-                if (typeof this.saveCustomThemes === 'function') this.saveCustomThemes();
-
-                try {
-                    const headers = { 'Content-Type': 'application/json' };
-                    if (adminToken) headers['X-Admin-Token'] = adminToken;
-                    const res = await fetch('/api/custom-frames/upload', {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(theme)
-                    });
-                    if (res.ok) {
-                        const json = await res.json();
-                        if (json.success && json.frame) {
-                            theme.url = json.frame.url;
-                        }
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && Array.isArray(data.frames)) {
+                        this.mergeServerFrames(data.frames, true);
                     }
-                } catch (e) {
-                    console.warn('Gagal sync upload frame ke server:', e);
                 }
-                return theme;
-            };
-        }
+            } catch (netErr) {
+                console.warn('Backend delete sync notice:', netErr);
+            }
+
+            return { success: true };
+        };
+
+        pf.addCustomTheme = async function(theme, adminToken = '') {
+            if (!theme.id) {
+                theme.id = 'frame_' + Date.now();
+            }
+            theme.isCustom = true;
+            if (!this.themes) this.themes = [];
+            this.themes.unshift(theme);
+            if (this.allThemes && !this.allThemes.some(t => t.id === theme.id)) {
+                this.allThemes.unshift(theme);
+            }
+            if (typeof this.saveCustomThemes === 'function') this.saveCustomThemes();
+
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (adminToken) headers['X-Admin-Token'] = adminToken;
+                const res = await fetch('/api/custom-frames/upload', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(theme)
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.success && json.frame) {
+                        theme.url = json.frame.url;
+                    }
+                    if (json.frames && Array.isArray(json.frames)) {
+                        this.mergeServerFrames(json.frames, Boolean(adminToken));
+                    }
+                }
+            } catch (e) {
+                console.warn('Gagal sync upload frame ke server:', e);
+            }
+            return theme;
+        };
 
         if (!pf.detectSlots) {
             pf.detectSlots = function(img) {
@@ -3142,15 +3309,15 @@
                 <div class="admin-frame-thumb-box">
                     <img class="admin-frame-thumb" src="${thumbUrl}" alt="${theme.name}">
                     <span class="admin-frame-status-pill ${isPublished ? 'status-pill-published' : 'status-pill-draft'}">
-                        ${isPublished ? '🟢 PUBLISHED (Aktif)' : '🔒 PRIVATE (Draft Operator)'}
+                        ${isPublished ? '🟢 Published' : '🔒 Private'}
                     </span>
                     <span class="admin-frame-badge ${isOverlay ? 'badge-overlay' : 'badge-bg'}">
-                        ${isOverlay ? '🖼️ Overlay' : '🎨 Background'}
+                        ${isOverlay ? 'Overlay' : 'Background'}
                     </span>
                 </div>
                 <div class="admin-frame-card-body">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                        <div class="admin-frame-title">Bingkai: <strong>${theme.name}</strong></div>
+                        <div class="admin-frame-title"><strong>${theme.name}</strong></div>
                         <span style="font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; ${isPublished ? 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;' : 'background: #fefce8; color: #b45309; border: 1px solid #fde68a;'}">
                             ${isPublished ? 'PUBLISHED' : 'PRIVATE'}
                         </span>
@@ -3158,10 +3325,11 @@
                     <div class="admin-frame-meta">
                         <span class="meta-tag">📸 ${theme.layoutLabel || '3 Foto'}</span>
                         <span class="meta-tag">📐 ${theme.naturalWidth || 840}x${theme.naturalHeight || 2376}</span>
+                        ${theme.isAssetFrame ? '<span class="meta-tag">⭐ Sistem</span>' : '<span class="meta-tag">✨ Kustom</span>'}
                     </div>
                     <div class="admin-frame-actions" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
                         <button type="button" class="btn-publish-main ${isPublished ? 'action-unpublish' : 'action-publish'}" data-id="${theme.id}" data-action="${isPublished ? 'unpublish' : 'publish'}">
-                            ${isPublished ? '<span>🔒 Jadikan Private (Sembunyikan dari User)</span>' : '<span>🚀 Publish untuk Pengunjung</span>'}
+                            ${isPublished ? '<span>🔒 Jadikan Private</span>' : '<span>🚀 Publikasikan ke Bilik</span>'}
                         </button>
                         <div style="display: flex; gap: 6px;">
                             <button type="button" class="btn-preview-admin-frame" data-id="${theme.id}" title="Uji coba preview bingkai ini di bilik foto">
