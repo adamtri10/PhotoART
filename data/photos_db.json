@@ -84,20 +84,6 @@
     "deletedAt": "2026-11-03T10:08:47Z"
   },
   {
-    "id": "pa_1793698771_1af7bc",
-    "userId": "user_11nsy2",
-    "filename": "photo_pa_1793698771_1af7bc.png",
-    "url": "data/photos/photo_pa_1793698771_1af7bc.png",
-    "themeId": "asset_frame_strip_3",
-    "themeName": "Classic Studio (3 Pose)",
-    "header": "PHOTOART",
-    "subtitle": "STUDIO MEMORIES",
-    "createdAt": "2026-11-03T09:39:31Z",
-    "fileSize": 1512422,
-    "deleted": true,
-    "deletedAt": "2026-11-03T10:08:42Z"
-  },
-  {
     "id": "pa_1793700511_84d3ea",
     "userId": "user_11nsy2",
     "filename": "photo_pa_1793700511_84d3ea.png",
@@ -124,5 +110,19 @@
     "fileSize": 1648989,
     "deleted": false,
     "deletedAt": null
+  },
+  {
+    "id": "pa_1793770441_62e01d",
+    "userId": "user_11nsy2",
+    "filename": "photo_pa_1793770441_62e01d.png",
+    "url": "data/photos/photo_pa_1793770441_62e01d.png",
+    "themeId": "asset_frame_strip_3",
+    "themeName": "Classic Studio (3 Pose)",
+    "header": "PHOTOART",
+    "subtitle": "STUDIO MEMORIES",
+    "createdAt": "2026-11-04T05:34:01Z",
+    "fileSize": 1470658,
+    "deleted": true,
+    "deletedAt": "2026-11-04T05:34:09Z"
   }
 ]

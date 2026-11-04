@@ -71,10 +71,10 @@
             <!-- Operator Quick Nav -->
             <div class="operator-header-nav">
                 <a href="booth.html" class="btn-operator-link" title="Buka Bilik Photobooth Pengunjung">
-                    <span>📸</span> <span>Buka Bilik Foto</span>
+                    <span></span> <span>Buka Bilik Foto</span>
                 </a>
                 <a href="index.html" class="btn-operator-link" title="Buka Halaman Utama">
-                    <span>🏠</span> <span>Beranda</span>
+                    <span></span> <span>Beranda</span>
                 </a>
             </div>
         </div>
@@ -91,7 +91,7 @@
                     <span class="vault-led-dot"></span>
                     <span>RESTRICTED CENTRAL ADMIN VAULT</span>
                 </div>
-                <div class="vault-keyhole-icon">🔐</div>
+                <div class="vault-keyhole-icon"></div>
                 <h2 class="card-title vault-title">Akses Sentral Operator</h2>
                 <p class="card-subtitle vault-subtitle">
                     Halaman kontrol operator booth untuk <strong>mengunggah & kurasi bingkai</strong>, serta memantau <strong>seluruh foto dari semua pengunjung</strong>.
@@ -102,7 +102,6 @@
                         <label class="form-label" for="input-admin-pin">PIN Rahasia Operator:</label>
                         <input id="input-admin-pin" class="form-input vault-pin-input" type="password" placeholder="Masukkan PIN" maxlength="16" inputmode="numeric" required>
                         <div class="vault-pin-hint">
-                            🔑 PIN Bawaan: <strong>8888</strong> atau <strong>1234</strong>
                         </div>
                     </div>
                     <div id="admin-login-error" class="login-error-msg" style="display: none;"></div>
@@ -119,7 +118,7 @@
                 <div class="admin-top-bar card">
                     <div class="admin-top-bar-info">
                         <div class="admin-top-bar-title-row">
-                            <span class="admin-top-icon">⚡</span>
+                            <span class="admin-top-icon"></span>
                             <h2 class="admin-top-title">PhotoArt Operator Control Center</h2>
                         </div>
                         <p class="admin-top-subtitle">
@@ -128,13 +127,13 @@
                     </div>
                     <div class="admin-top-bar-actions">
                         <a href="booth.html" class="btn-secondary btn-admin-top" title="Buka Bilik Photobooth Pengunjung">
-                            <span>📸 Bilik Foto</span>
+                            <span>Bilik Foto</span>
                         </a>
                         <button type="button" class="btn-secondary btn-admin-top" id="btn-admin-refresh" title="Perbarui Data dari Server">
-                            <span>🔄 Refresh</span>
+                            <span>Refresh</span>
                         </button>
                         <button type="button" class="btn-secondary btn-admin-top btn-admin-logout" id="btn-admin-logout" title="Keluar dari Mode Operator">
-                            <span>🚪 Keluar</span>
+                            <span>Keluar</span>
                         </button>
                     </div>
                 </div>
@@ -159,15 +158,15 @@
                 <div class="card admin-tabs-container">
                     <div class="admin-tabs-nav">
                         <button type="button" class="admin-tab-btn active" data-admin-tab="frames" id="tab-btn-frames">
-                            <span>🎨 Kelola Bingkai</span>
+                            <span>Kelola Bingkai</span>
                             <span class="tab-badge" id="badge-frames-count">0</span>
                         </button>
                         <button type="button" class="admin-tab-btn" data-admin-tab="trash" id="tab-btn-trash">
-                            <span>🗑️ Keranjang Sampah</span>
+                            <span>Keranjang Sampah</span>
                             <span class="tab-badge" id="badge-trash-count">0</span>
                         </button>
                         <button type="button" class="admin-tab-btn" data-admin-tab="active" id="tab-btn-active">
-                            <span>🖼️ Media Semua User</span>
+                            <span>Media Semua User</span>
                             <span class="tab-badge" id="badge-active-count">0</span>
                         </button>
                     </div>
@@ -182,7 +181,7 @@
                             <div class="curation-header">
                                 <div class="curation-intro">
                                     <div class="curation-title-row">
-                                        <span class="curation-header-icon">🎨</span>
+                                        <span class="curation-header-icon"></span>
                                         <h3 class="curation-title">Kotak Kurasi Bingkai (Publish / Private)</h3>
                                     </div>
                                     <p class="curation-desc">
@@ -207,7 +206,7 @@
                                     <!-- Upload button -->
                                     <input type="file" id="input-admin-frame-upload" accept="image/png, image/jpeg, image/webp" style="display: none;">
                                     <button type="button" id="btn-admin-upload-frame" class="btn-secondary btn-upload-frame">
-                                        <span>➕ Unggah Frame Baru</span>
+                                        <span>Unggah Frame Baru</span>
                                     </button>
                                 </div>
                             </div>
@@ -240,7 +239,7 @@
 
                         <!-- Empty State for Admin Media -->
                         <div id="admin-media-empty" class="dashboard-empty-state" style="display: none; padding: 30px;">
-                            <div class="empty-icon">📂</div>
+                            <div class="empty-icon"></div>
                             <h3>Tidak Ada Foto di Kategori Ini</h3>
                             <p>Semua media berjalan normal tanpa kendala.</p>
                         </div>
@@ -277,7 +276,7 @@
 
                 <!-- Deteksi Slot Grid Otomatis -->
                 <div id="frame-detection-box" class="detection-result-box">
-                    <div class="detection-icon">🔍</div>
+                    <div class="detection-icon"></div>
                     <div class="detection-info">
                         <strong id="detection-status-title">Menganalisis Format Bingkai...</strong>
                         <p id="detection-status-desc">Menyesuaikan lubang transparan foto secara otomatis.</p>
@@ -288,7 +287,7 @@
                     <button type="button" id="btn-cancel-frame-setup" class="btn-secondary" style="flex: 1;">Batal</button>
                     <button type="button" id="btn-confirm-save-frame" class="btn-primary" style="flex: 2;">
                         <span>Simpan Bingkai / Frame</span>
-                        <span>💾</span>
+                        <span></span>
                     </button>
                 </div>
             </div>
