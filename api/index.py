@@ -18,34 +18,83 @@ TMP_DIR = "/tmp"
 TMP_PHOTOS_DB = os.path.join(TMP_DIR, "photos_db.json")
 TMP_FRAMES_DB = os.path.join(TMP_DIR, "custom_frames_db.json")
 TMP_FRAME_OVERRIDES = os.path.join(TMP_DIR, "frame_publish_overrides.json")
+TMP_TOMBSTONES = os.path.join(TMP_DIR, "photoart_tombstones.json")
+FALLBACK_TOMBSTONES = os.path.join(DATA_DIR, "tombstones.json")
 ASSET_FRAMES_JSON = os.path.join(BASE_DIR, "assets", "frames", "frames.json")
 
+def get_tombstones():
+    t_set = set()
+    for path in [TMP_TOMBSTONES, FALLBACK_TOMBSTONES]:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        t_set.update(data)
+            except Exception:
+                pass
+    return t_set
+
+def add_tombstone(photo_id):
+    if not photo_id:
+        return
+    t_set = get_tombstones()
+    t_set.add(photo_id)
+    t_list = list(t_set)
+    for p in [TMP_TOMBSTONES, FALLBACK_TOMBSTONES]:
+        try:
+            with open(p, "w", encoding="utf-8") as f:
+                json.dump(t_list, f, ensure_ascii=False)
+        except Exception:
+            pass
+
+def remove_tombstone(photo_id):
+    if not photo_id:
+        return
+    t_set = get_tombstones()
+    if photo_id in t_set:
+        t_set.remove(photo_id)
+        t_list = list(t_set)
+        for p in [TMP_TOMBSTONES, FALLBACK_TOMBSTONES]:
+            try:
+                with open(p, "w", encoding="utf-8") as f:
+                    json.dump(t_list, f, ensure_ascii=False)
+            except Exception:
+                pass
+
 def get_photos_db():
+    tombstones = get_tombstones()
+    photos = []
     if os.path.exists(TMP_PHOTOS_DB):
         try:
             with open(TMP_PHOTOS_DB, "r", encoding="utf-8") as f:
-                return json.load(f)
+                photos = json.load(f)
         except Exception:
             pass
-    fallback_path = os.path.join(DATA_DIR, "photos_db.json")
-    if os.path.exists(fallback_path):
-        try:
-            with open(fallback_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return []
+    if not photos:
+        fallback_path = os.path.join(DATA_DIR, "photos_db.json")
+        if os.path.exists(fallback_path):
+            try:
+                with open(fallback_path, "r", encoding="utf-8") as f:
+                    photos = json.load(f)
+            except Exception:
+                pass
+    if not isinstance(photos, list):
+        return []
+    return [p for p in photos if isinstance(p, dict) and p.get("id") and p.get("id") not in tombstones]
 
 def save_photos_db(data):
+    tombstones = get_tombstones()
+    clean_data = [p for p in data if isinstance(p, dict) and p.get("id") and p.get("id") not in tombstones]
     try:
         with open(TMP_PHOTOS_DB, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(clean_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print("Save photos error:", e)
     try:
         fallback_path = os.path.join(DATA_DIR, "photos_db.json")
         with open(fallback_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(clean_data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
@@ -351,8 +400,13 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(400, {"success": False, "error": "Image data required"})
                 return
 
-            user_id = self.headers.get("X-User-Id") or body.get("userId") or f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}"
             photo_id = body.get("id") or f"photo_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+            tombstones = get_tombstones()
+            if photo_id in tombstones:
+                # If uploaded photo was previously tombstoned, reject or permit if re-saving
+                remove_tombstone(photo_id)
+
+            user_id = self.headers.get("X-User-Id") or body.get("userId") or f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}"
             new_photo = {
                 "id": photo_id,
                 "userId": user_id,
@@ -427,6 +481,10 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(401, {"error": "Unauthorized"})
                 return
             photo_id = body.get("id")
+            if not photo_id:
+                self._send_json(400, {"error": "Missing photo id"})
+                return
+            remove_tombstone(photo_id)
             photos = get_photos_db()
             found = False
             for p in photos:
@@ -448,9 +506,30 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(401, {"error": "Unauthorized"})
                 return
             photo_id = body.get("id")
+            if not photo_id:
+                self._send_json(400, {"error": "Missing photo id"})
+                return
+
+            # Register tombstone so it can NEVER be loaded or synced again
+            add_tombstone(photo_id)
+
             photos = get_photos_db()
             new_photos = [p for p in photos if p.get("id") != photo_id]
             save_photos_db(new_photos)
+
+            # Unlink file from disk if present
+            try:
+                for base in [os.path.join(DATA_DIR, "photos"), os.path.join(TMP_DIR, "photos")]:
+                    if os.path.exists(base):
+                        for fname in os.listdir(base):
+                            if photo_id in fname:
+                                try:
+                                    os.remove(os.path.join(base, fname))
+                                except Exception:
+                                    pass
+            except Exception:
+                pass
+
             self._send_json(200, {"success": True, "message": "Photo permanently deleted"})
             return
 
